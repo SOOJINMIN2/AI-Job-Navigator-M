@@ -25,7 +25,7 @@ export async function signup(formData: FormData) {
 
   if (error) {
     console.error('회원가입 에러:', error.message)
-    redirect('/signup?error=Could not create account')
+    redirect(`/signup?error=${encodeURIComponent(error.message)}`)
   }
 
   revalidatePath('/', 'layout')

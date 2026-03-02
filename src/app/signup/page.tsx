@@ -1,6 +1,12 @@
 import { signup } from './actions'
 
-export default function SignupPage() {
+export default async function SignupPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ error?: string }>
+}) {
+    const { error } = await searchParams
+
     return (
         <div className="flex min-h-screen items-center justify-center p-4 bg-gray-50 dark:bg-zinc-950">
             <div className="w-full max-w-md space-y-8 bg-white dark:bg-zinc-900 p-8 rounded-2xl shadow-xl border border-gray-100 dark:border-zinc-800">
@@ -12,6 +18,12 @@ export default function SignupPage() {
                         Join AI Job Navigator today
                     </p>
                 </div>
+
+                {error && (
+                    <div className="rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-3">
+                        <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+                    </div>
+                )}
 
                 <form className="mt-8 space-y-6">
                     <div className="space-y-4">

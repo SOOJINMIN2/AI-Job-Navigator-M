@@ -17,9 +17,8 @@ export async function login(formData: FormData) {
   })
 
   if (error) {
-    // 로그인 실패 시 (추후 에러 처리 UI 추가 가능)
     console.error('로그인 에러:', error.message)
-    redirect('/login?error=Could not authenticate user')
+    redirect(`/login?error=${encodeURIComponent(error.message)}`)
   }
 
   // 로그인 성공 시 메인 페이지로 이동
