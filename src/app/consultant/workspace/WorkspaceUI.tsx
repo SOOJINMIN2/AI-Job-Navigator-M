@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useCompletion } from '@ai-sdk/react'
 import { saveFinalResult, createConsultantSession, deleteSession } from '@/lib/actions/consultant'
@@ -34,6 +34,17 @@ export default function WorkspaceUI({
     const [selectedSession, setSelectedSession] = useState<SessionType | null>(null)
     const [isCreatingNew, setIsCreatingNew] = useState(false)
     const router = useRouter()
+
+    useEffect(() => {
+        setSessions(initialSessions)
+
+        // 새로고침 시 선택된 케이스(문서 등) 업데이트
+        setSelectedSession(prev => {
+            if (!prev) return null
+            const updated = initialSessions.find(s => s.id === prev.id)
+            return updated || prev
+        })
+    }, [initialSessions])
 
     // 새 케이스 폼 상태
     const [clientName, setClientName] = useState('')
@@ -125,11 +136,13 @@ export default function WorkspaceUI({
 
             // 업로드 및 케이스 생성이 완료되었으므로 화면 상태 초기화 및 서버 갱신
             // 서버 갱신 전 로컬 상태에 먼저 새 케이스를 띄워 체감 속도와 반영을 확실히 합니다.
-            setSessions(prev => [{
+            const createdSession = {
                 ...newSession,
                 documents: [] // 업로드된 문서는 나중에 새로고침 시 불러옴
-            }, ...prev])
+            }
+            setSessions(prev => [createdSession, ...prev])
 
+            setSelectedSession(createdSession)
             setIsCreatingNew(false)
             setFormStatus('idle')
             router.refresh()
