@@ -24,6 +24,7 @@ type PromptType = {
 export default function WorkspaceUI({ requests, prompts }: { requests: RequestType[], prompts: PromptType[] }) {
     const [selectedRequest, setSelectedRequest] = useState<RequestType | null>(null)
     const [selectedPromptId, setSelectedPromptId] = useState<string>('')
+    const [selectedModel, setSelectedModel] = useState<string>('gemini')
     const [isSaving, setIsSaving] = useState(false)
     const [isExportingDocs, setIsExportingDocs] = useState(false)
 
@@ -46,11 +47,12 @@ Job Requirements: ${selectedRequest.job_description_url_or_text || 'No job descr
 Resume Document Text: ${selectedRequest.documents?.[0]?.parsed_text || 'No text extracted.'}
 `
 
-        // Start streaming from Gemini
+        // Start streaming from selected model
         await complete('', {
             body: {
                 system_prompt: prompt.system_prompt,
-                student_data: student_data
+                student_data: student_data,
+                model_provider: selectedModel
             }
         })
     }
@@ -177,6 +179,28 @@ Resume Document Text: ${selectedRequest.documents?.[0]?.parsed_text || 'No text 
                         {/* AI Generator Panel (Right) */}
                         <div className="flex-1 p-6 flex flex-col bg-gray-50 dark:bg-zinc-950 h-full">
                             <h3 className="text-xl font-bold dark:text-gray-100 mb-6 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent w-max">AI Consultant</h3>
+
+                            <div className="mb-4">
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    AI 모델 선택
+                                </label>
+                                <div className="flex gap-2 mb-4">
+                                    {[
+                                        { id: 'gemini', label: 'Gemini 1.5 Pro', badge: '~₩16/건', color: 'blue' },
+                                        { id: 'claude-haiku', label: 'Claude Haiku', badge: '~₩12/건', color: 'purple' },
+                                        { id: 'claude-sonnet', label: 'Claude Sonnet', badge: '~₩47/건', color: 'indigo' },
+                                    ].map(m => (
+                                        <button
+                                            key={m.id}
+                                            onClick={() => setSelectedModel(m.id)}
+                                            className={`flex-1 py-2 px-2 rounded-md text-xs font-semibold border transition-colors ${selectedModel === m.id ? 'bg-blue-600 text-white border-blue-600' : 'bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-zinc-600 hover:border-blue-400'}`}
+                                        >
+                                            <div>{m.label}</div>
+                                            <div className={`text-[10px] mt-0.5 ${selectedModel === m.id ? 'text-blue-100' : 'text-gray-400'}`}>{m.badge}</div>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
 
                             <div className="mb-4">
                                 <label htmlFor="prompt-select" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
