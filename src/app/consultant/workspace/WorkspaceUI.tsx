@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useCompletion } from '@ai-sdk/react'
-import { saveFinalResult, createConsultantSession } from '@/lib/actions/consultant'
+import { saveFinalResult, createConsultantSession, deleteSession } from '@/lib/actions/consultant'
 
 type SessionType = {
     id: string
@@ -15,7 +15,8 @@ type SessionType = {
     documents: { file_url: string; parsed_text: string }[]
 }
 
-const DEFAULT_INSTRUCTION = `당신은 전문 취업 컨설턴트입니다. 아래 고객 정보를 바탕으로 종합 컨설팅 보고서를 작성해주세요.
+// 내부 고정 프롬프트 (사용자에게 노출하지 않음)
+const SYSTEM_PROMPT = `당신은 전문 취업 컨설턴트입니다. 아래 고객 정보를 바탕으로 종합 컨설팅 보고서를 작성해주세요.
 
 ## 1. 이력서 분석 (강점 / 보완점)
 ## 2. 자기소개서 분석 (완성도 / 개선 포인트)
@@ -28,7 +29,7 @@ export default function WorkspaceUI({
 }: {
     initialSessions: SessionType[]
 }) {
-    const [sessions] = useState<SessionType[]>(initialSessions)
+    const [sessions, setSessions] = useState<SessionType[]>(initialSessions)
     const [selectedSession, setSelectedSession] = useState<SessionType | null>(null)
     const [isCreatingNew, setIsCreatingNew] = useState(false)
 
@@ -42,9 +43,9 @@ export default function WorkspaceUI({
 
     // AI 상태
     const [selectedModel, setSelectedModel] = useState<string>('gemini')
-    const [instruction, setInstruction] = useState<string>(DEFAULT_INSTRUCTION)
     const [isSaving, setIsSaving] = useState(false)
     const [isExportingDocs, setIsExportingDocs] = useState(false)
+    const [isDeletingId, setIsDeletingId] = useState<string | null>(null)
 
     const { completion, setCompletion, complete, isLoading, error: aiError } = useCompletion({
         api: '/api/generate',
@@ -115,8 +116,26 @@ export default function WorkspaceUI({
         }
     }
 
+    const handleDeleteSession = async (id: string, e: React.MouseEvent) => {
+        e.stopPropagation()
+        if (!confirm('이 케이스를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) return
+        setIsDeletingId(id)
+        try {
+            await deleteSession(id)
+            setSessions(prev => prev.filter(s => s.id !== id))
+            if (selectedSession?.id === id) {
+                setSelectedSession(null)
+                setCompletion('')
+            }
+        } catch (err: any) {
+            alert(`삭제 실패: ${err.message}`)
+        } finally {
+            setIsDeletingId(null)
+        }
+    }
+
     const handleGenerate = async () => {
-        if (!selectedSession || !instruction.trim()) return
+        if (!selectedSession) return
 
         const docs = selectedSession.documents || []
         const resumeDoc = docs[0]
@@ -134,7 +153,7 @@ ${coverLetterDoc?.parsed_text || '자기소개서 없음'}`
 
         await complete('', {
             body: {
-                system_prompt: instruction,
+                system_prompt: SYSTEM_PROMPT,
                 student_data,
                 model_provider: selectedModel,
             },
@@ -201,13 +220,13 @@ ${coverLetterDoc?.parsed_text || '자기소개서 없음'}`
                         <div
                             key={s.id}
                             onClick={() => handleSelectSession(s)}
-                            className={`p-3 border-b border-gray-100 dark:border-zinc-800 cursor-pointer transition-colors ${
+                            className={`relative group p-3 border-b border-gray-100 dark:border-zinc-800 cursor-pointer transition-colors ${
                                 selectedSession?.id === s.id && !isCreatingNew
                                     ? 'bg-blue-50 dark:bg-zinc-800 border-l-4 border-l-blue-500'
                                     : 'hover:bg-gray-50 dark:hover:bg-zinc-800/50'
                             }`}
                         >
-                            <div className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">
+                            <div className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate pr-6">
                                 {s.client_name || '(이름 없음)'}
                             </div>
                             <div className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
@@ -225,6 +244,25 @@ ${coverLetterDoc?.parsed_text || '자기소개서 없음'}`
                                     {new Date(s.created_at).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
                                 </span>
                             </div>
+
+                            {/* 삭제 버튼 */}
+                            <button
+                                onClick={(e) => handleDeleteSession(s.id, e)}
+                                disabled={isDeletingId === s.id}
+                                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-1 rounded text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all disabled:opacity-50"
+                                title="케이스 삭제"
+                            >
+                                {isDeletingId === s.id ? (
+                                    <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                                    </svg>
+                                ) : (
+                                    <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                )}
+                            </button>
                         </div>
                     ))}
                 </div>
@@ -435,32 +473,21 @@ ${coverLetterDoc?.parsed_text || '자기소개서 없음'}`
                             </div>
                         </div>
 
-                        {/* AI 지시사항 + 생성 버튼 */}
-                        <div className="mb-3">
-                            <div className="flex justify-between items-center mb-2">
-                                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider">AI 지시사항</label>
-                                <button
-                                    onClick={() => setInstruction(DEFAULT_INSTRUCTION)}
-                                    className="text-[10px] text-blue-500 hover:text-blue-700 font-medium"
-                                >
-                                    기본값으로 초기화
-                                </button>
-                            </div>
-                            <textarea
-                                value={instruction}
-                                onChange={(e) => setInstruction(e.target.value)}
-                                rows={6}
-                                className="w-full rounded-md border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
-                                placeholder="AI에게 어떤 분석을 원하는지 입력하세요..."
-                            />
-                        </div>
-
+                        {/* 생성 버튼 */}
                         <button
                             onClick={handleGenerate}
-                            disabled={isLoading || !instruction.trim()}
-                            className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-md text-sm font-bold disabled:opacity-50 transition-colors mb-4"
+                            disabled={isLoading}
+                            className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-md text-sm font-bold disabled:opacity-50 transition-colors mb-4 shadow-sm"
                         >
-                            {isLoading ? '생성 중...' : '✦ AI 보고서 생성'}
+                            {isLoading ? (
+                                <span className="flex items-center justify-center gap-2">
+                                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                                    </svg>
+                                    생성 중...
+                                </span>
+                            ) : '✦ AI 보고서 생성'}
                         </button>
 
                         {aiError && (

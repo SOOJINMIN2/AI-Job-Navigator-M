@@ -44,6 +44,30 @@ export async function createConsultantSession(formData: FormData) {
     return data
 }
 
+export async function deleteSession(requestId: string) {
+    const supabase = await createClient()
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) throw new Error('로그인이 필요합니다.')
+
+    const { data: role } = await supabase.rpc('get_my_role')
+    if (role !== 'consultant') throw new Error('컨설턴트 권한이 필요합니다.')
+
+    // results → documents → consulting_requests 순서로 삭제 (FK 제약 대비)
+    await supabase.from('results').delete().eq('request_id', requestId)
+    await supabase.from('documents').delete().eq('request_id', requestId)
+
+    const { error } = await supabase
+        .from('consulting_requests')
+        .delete()
+        .eq('id', requestId)
+
+    if (error) throw new Error(`삭제 실패: ${error.message}`)
+
+    revalidatePath('/consultant/workspace')
+    return { success: true }
+}
+
 export async function saveFinalResult(requestId: string, finalContent: string) {
     const supabase = await createClient()
 
