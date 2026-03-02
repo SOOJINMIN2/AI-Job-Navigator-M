@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useCompletion } from '@ai-sdk/react'
 import { saveFinalResult, createConsultantSession, deleteSession } from '@/lib/actions/consultant'
 
@@ -32,6 +33,7 @@ export default function WorkspaceUI({
     const [sessions, setSessions] = useState<SessionType[]>(initialSessions)
     const [selectedSession, setSelectedSession] = useState<SessionType | null>(null)
     const [isCreatingNew, setIsCreatingNew] = useState(false)
+    const router = useRouter()
 
     // 새 케이스 폼 상태
     const [clientName, setClientName] = useState('')
@@ -74,7 +76,9 @@ export default function WorkspaceUI({
         setPdfFiles(selected)
     }
 
-    const handleCreateSession = async () => {
+    const handleCreateSession = async (e?: React.MouseEvent) => {
+        if (e) e.preventDefault()
+
         if (!company.trim()) {
             setFormError('회사명은 필수 입력 항목입니다.')
             return
@@ -94,6 +98,8 @@ export default function WorkspaceUI({
             const newSession = await createConsultantSession(fd)
 
             const docTypes = ['resume', 'cover_letter']
+            const uploadedDocs = []
+
             for (let i = 0; i < pdfFiles.length; i++) {
                 const uploadFd = new FormData()
                 uploadFd.append('file', pdfFiles[i])
@@ -104,12 +110,18 @@ export default function WorkspaceUI({
                     method: 'POST',
                     body: uploadFd,
                 })
+
+                const responseData = await uploadRes.json()
                 if (!uploadRes.ok) {
-                    const errData = await uploadRes.json()
-                    throw new Error(errData.error || `PDF 업로드 실패 (${docTypes[i]})`)
+                    throw new Error(responseData.error || `PDF 업로드 실패 (${docTypes[i]})`)
                 }
             }
-            window.location.reload()
+
+            // 업로드 및 케이스 생성이 완료되었으므로 화면 상태 초기화 및 서버 갱신
+            setIsCreatingNew(false)
+            setFormStatus('idle')
+            router.refresh()
+
         } catch (err: any) {
             setFormError(err.message || '케이스 생성에 실패했습니다.')
             setFormStatus('error')
@@ -166,7 +178,7 @@ ${coverLetterDoc?.parsed_text || '자기소개서 없음'}`
         try {
             await saveFinalResult(selectedSession.id, completion)
             alert('결과가 저장되었습니다. 케이스가 완료 처리되었습니다.')
-            window.location.reload()
+            router.refresh()
         } catch {
             alert('저장에 실패했습니다.')
         } finally {
@@ -220,11 +232,10 @@ ${coverLetterDoc?.parsed_text || '자기소개서 없음'}`
                         <div
                             key={s.id}
                             onClick={() => handleSelectSession(s)}
-                            className={`relative group p-3 border-b border-gray-100 dark:border-zinc-800 cursor-pointer transition-colors ${
-                                selectedSession?.id === s.id && !isCreatingNew
-                                    ? 'bg-blue-50 dark:bg-zinc-800 border-l-4 border-l-blue-500'
-                                    : 'hover:bg-gray-50 dark:hover:bg-zinc-800/50'
-                            }`}
+                            className={`relative group p-3 border-b border-gray-100 dark:border-zinc-800 cursor-pointer transition-colors ${selectedSession?.id === s.id && !isCreatingNew
+                                ? 'bg-blue-50 dark:bg-zinc-800 border-l-4 border-l-blue-500'
+                                : 'hover:bg-gray-50 dark:hover:bg-zinc-800/50'
+                                }`}
                         >
                             <div className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate pr-6">
                                 {s.client_name || '(이름 없음)'}
@@ -233,11 +244,10 @@ ${coverLetterDoc?.parsed_text || '자기소개서 없음'}`
                                 {s.target_company || '-'}
                             </div>
                             <div className="flex items-center justify-between mt-1.5">
-                                <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full ${
-                                    s.status === 'completed'
-                                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-                                        : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-                                }`}>
+                                <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full ${s.status === 'completed'
+                                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                                    : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                                    }`}>
                                     {s.status === 'completed' ? '완료' : '진행중'}
                                 </span>
                                 <span className="text-[10px] text-gray-400">
@@ -249,13 +259,16 @@ ${coverLetterDoc?.parsed_text || '자기소개서 없음'}`
                             <button
                                 onClick={(e) => handleDeleteSession(s.id, e)}
                                 disabled={isDeletingId === s.id}
-                                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-1 rounded text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all disabled:opacity-50"
+                                className={`absolute top-2 right-2 p-1 rounded transition-all disabled:opacity-50 ${selectedSession?.id === s.id && !isCreatingNew
+                                    ? 'text-red-400 hover:text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30'
+                                    : 'opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 hover:bg-red-50 border-gray-200 dark:hover:bg-red-900/20'
+                                    }`}
                                 title="케이스 삭제"
                             >
                                 {isDeletingId === s.id ? (
                                     <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
                                     </svg>
                                 ) : (
                                     <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -352,6 +365,7 @@ ${coverLetterDoc?.parsed_text || '자기소개서 없음'}`
                             )}
                             <div className="flex gap-3 pt-2">
                                 <button
+                                    type="button"
                                     onClick={handleCreateSession}
                                     disabled={formStatus === 'submitting'}
                                     className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg text-sm font-bold transition-colors disabled:opacity-60 shadow-sm"
@@ -359,14 +373,15 @@ ${coverLetterDoc?.parsed_text || '자기소개서 없음'}`
                                     {formStatus === 'submitting' ? (
                                         <span className="flex items-center justify-center gap-2">
                                             <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
                                             </svg>
                                             PDF 처리 중...
                                         </span>
                                     ) : '케이스 생성'}
                                 </button>
                                 <button
+                                    type="button"
                                     onClick={() => setIsCreatingNew(false)}
                                     disabled={formStatus === 'submitting'}
                                     className="px-6 bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 py-3 rounded-lg text-sm font-semibold hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors"
@@ -402,16 +417,32 @@ ${coverLetterDoc?.parsed_text || '자기소개서 없음'}`
 
                     {/* 가운데: 케이스 정보 */}
                     <div className="flex-1 border-r border-gray-200 dark:border-zinc-800 p-6 overflow-y-auto bg-white dark:bg-zinc-900">
-                        <div className="mb-6">
-                            <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-                                {selectedSession.client_name || '(이름 없음)'}
-                            </h3>
-                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                                {selectedSession.target_company || '회사 미입력'}
-                                {selectedSession.job_description_url_or_text && (
-                                    <span className="ml-2 text-gray-400">· {selectedSession.job_description_url_or_text}</span>
+                        <div className="mb-6 flex justify-between items-start gap-4">
+                            <div>
+                                <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                                    {selectedSession.client_name || '(이름 없음)'}
+                                </h3>
+                                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                                    {selectedSession.target_company || '회사 미입력'}
+                                    {selectedSession.job_description_url_or_text && (
+                                        <span className="ml-2 text-gray-400">· {selectedSession.job_description_url_or_text}</span>
+                                    )}
+                                </p>
+                            </div>
+                            <button
+                                onClick={(e) => handleDeleteSession(selectedSession.id, e)}
+                                disabled={isDeletingId === selectedSession.id}
+                                className="flex-shrink-0 px-3 py-1.5 text-xs font-bold text-red-600 bg-red-50 border border-red-100 hover:bg-red-100 hover:border-red-200 dark:bg-red-900/20 dark:border-red-800/50 dark:hover:bg-red-900/40 dark:text-red-400 rounded-md transition-all flex items-center gap-1.5 disabled:opacity-50"
+                            >
+                                {isDeletingId === selectedSession.id ? '삭제 중...' : (
+                                    <>
+                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
+                                        케이스 삭제
+                                    </>
                                 )}
-                            </p>
+                            </button>
                         </div>
                         <div className="space-y-6">
                             {selectedSession.documents?.length === 0 && (
@@ -420,11 +451,10 @@ ${coverLetterDoc?.parsed_text || '자기소개서 없음'}`
                             {selectedSession.documents?.map((doc, i) => (
                                 <div key={i}>
                                     <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex justify-between items-center">
-                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                                            i === 0
-                                                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-                                                : 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300'
-                                        }`}>
+                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${i === 0
+                                            ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                                            : 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300'
+                                            }`}>
                                             {i === 0 ? '이력서' : '자기소개서'}
                                         </span>
                                         {doc.file_url && (
@@ -460,11 +490,10 @@ ${coverLetterDoc?.parsed_text || '자기소개서 없음'}`
                                     <button
                                         key={m.id}
                                         onClick={() => setSelectedModel(m.id)}
-                                        className={`flex-1 py-2 px-1 rounded-md text-xs font-semibold border transition-colors ${
-                                            selectedModel === m.id
-                                                ? 'bg-blue-600 text-white border-blue-600'
-                                                : 'bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-zinc-600 hover:border-blue-400'
-                                        }`}
+                                        className={`flex-1 py-2 px-1 rounded-md text-xs font-semibold border transition-colors ${selectedModel === m.id
+                                            ? 'bg-blue-600 text-white border-blue-600'
+                                            : 'bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-zinc-600 hover:border-blue-400'
+                                            }`}
                                     >
                                         <div className="leading-tight">{m.label}</div>
                                         <div className={`text-[9px] mt-0.5 ${selectedModel === m.id ? 'text-blue-100' : 'text-gray-400'}`}>{m.badge}</div>
@@ -477,17 +506,24 @@ ${coverLetterDoc?.parsed_text || '자기소개서 없음'}`
                         <button
                             onClick={handleGenerate}
                             disabled={isLoading}
-                            className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-md text-sm font-bold disabled:opacity-50 transition-colors mb-4 shadow-sm"
+                            className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-3.5 rounded-lg text-lg font-bold disabled:opacity-50 transition-colors mb-5 shadow-md flex items-center justify-center gap-2"
                         >
                             {isLoading ? (
-                                <span className="flex items-center justify-center gap-2">
-                                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                                <>
+                                    <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
                                     </svg>
                                     생성 중...
-                                </span>
-                            ) : '✦ AI 보고서 생성'}
+                                </>
+                            ) : (
+                                <>
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                                    </svg>
+                                    보고서 전체 생성하기
+                                </>
+                            )}
                         </button>
 
                         {aiError && (
