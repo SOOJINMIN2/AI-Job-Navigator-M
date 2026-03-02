@@ -11,21 +11,21 @@ export default async function DashboardPage() {
         redirect('/login')
     }
 
-    // 2. Fetch User Role from public.users
-    const { data: profile, error: profileError } = await supabase
-        .from('users')
-        .select('role')
-        .eq('id', user.id)
-        .single()
+    // 2. Get role from user metadata (set during signup)
+    //    Fallback to public.users if metadata role is missing
+    let role = user.user_metadata?.role as string | undefined
 
-    if (profileError || !profile) {
-        // Profile not found - sign out and redirect to login
-        await supabase.auth.signOut()
-        redirect('/login')
+    if (!role) {
+        const { data: profile } = await supabase
+            .from('users')
+            .select('role')
+            .eq('id', user.id)
+            .single()
+        role = profile?.role
     }
 
-    // 3. Redirect to explicit routes based on Role
-    if (profile.role === 'consultant') {
+    // 3. Redirect based on Role
+    if (role === 'consultant') {
         redirect('/consultant/workspace')
     }
 
