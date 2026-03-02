@@ -15,21 +15,20 @@ type SessionType = {
     documents: { file_url: string; parsed_text: string }[]
 }
 
-type PromptType = {
-    id: string
-    title: string
-    category: string
-    system_prompt: string
-}
+const DEFAULT_INSTRUCTION = `당신은 전문 취업 컨설턴트입니다. 아래 고객 정보를 바탕으로 종합 컨설팅 보고서를 작성해주세요.
+
+## 1. 이력서 분석 (강점 / 보완점)
+## 2. 자기소개서 분석 (완성도 / 개선 포인트)
+## 3. 지원 직무 적합도 평가
+## 4. 합격 가능성을 높이는 핵심 액션 아이템 (Top 5)
+## 5. 컨설턴트 최종 의견`
 
 export default function WorkspaceUI({
     initialSessions,
-    prompts,
 }: {
     initialSessions: SessionType[]
-    prompts: PromptType[]
 }) {
-    const [sessions, setSessions] = useState<SessionType[]>(initialSessions)
+    const [sessions] = useState<SessionType[]>(initialSessions)
     const [selectedSession, setSelectedSession] = useState<SessionType | null>(null)
     const [isCreatingNew, setIsCreatingNew] = useState(false)
 
@@ -37,13 +36,13 @@ export default function WorkspaceUI({
     const [clientName, setClientName] = useState('')
     const [company, setCompany] = useState('')
     const [jobDesc, setJobDesc] = useState('')
-    const [pdfFiles, setPdfFiles] = useState<File[]>([])          // 최대 2개 (이력서, 자소서)
+    const [pdfFiles, setPdfFiles] = useState<File[]>([])
     const [formStatus, setFormStatus] = useState<'idle' | 'submitting' | 'error'>('idle')
     const [formError, setFormError] = useState('')
 
     // AI 상태
     const [selectedModel, setSelectedModel] = useState<string>('gemini')
-    const [selectedPromptId, setSelectedPromptId] = useState<string>('')
+    const [instruction, setInstruction] = useState<string>(DEFAULT_INSTRUCTION)
     const [isSaving, setIsSaving] = useState(false)
     const [isExportingDocs, setIsExportingDocs] = useState(false)
 
@@ -55,7 +54,6 @@ export default function WorkspaceUI({
         setIsCreatingNew(true)
         setSelectedSession(null)
         setCompletion('')
-        setSelectedPromptId('')
         setFormStatus('idle')
         setFormError('')
         setClientName('')
@@ -68,11 +66,10 @@ export default function WorkspaceUI({
         setSelectedSession(s)
         setIsCreatingNew(false)
         setCompletion('')
-        setSelectedPromptId('')
     }
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const selected = Array.from(e.target.files || []).slice(0, 2) // 최대 2개
+        const selected = Array.from(e.target.files || []).slice(0, 2)
         setPdfFiles(selected)
     }
 
@@ -89,15 +86,12 @@ export default function WorkspaceUI({
         setFormError('')
 
         try {
-            // 1. DB에 consulting_request 생성
             const fd = new FormData()
             fd.append('client_name', clientName)
             fd.append('company', company)
             fd.append('job_description', jobDesc)
-
             const newSession = await createConsultantSession(fd)
 
-            // 2. PDF 순서대로 업로드: 첫 번째=이력서, 두 번째=자소서
             const docTypes = ['resume', 'cover_letter']
             for (let i = 0; i < pdfFiles.length; i++) {
                 const uploadFd = new FormData()
@@ -109,14 +103,11 @@ export default function WorkspaceUI({
                     method: 'POST',
                     body: uploadFd,
                 })
-
                 if (!uploadRes.ok) {
                     const errData = await uploadRes.json()
                     throw new Error(errData.error || `PDF 업로드 실패 (${docTypes[i]})`)
                 }
             }
-
-            // 3. 최신 데이터로 새로고침
             window.location.reload()
         } catch (err: any) {
             setFormError(err.message || '케이스 생성에 실패했습니다.')
@@ -125,10 +116,7 @@ export default function WorkspaceUI({
     }
 
     const handleGenerate = async () => {
-        if (!selectedSession || !selectedPromptId) return
-
-        const prompt = prompts.find((p) => p.id === selectedPromptId)
-        if (!prompt) return
+        if (!selectedSession || !instruction.trim()) return
 
         const docs = selectedSession.documents || []
         const resumeDoc = docs[0]
@@ -146,7 +134,7 @@ ${coverLetterDoc?.parsed_text || '자기소개서 없음'}`
 
         await complete('', {
             body: {
-                system_prompt: prompt.system_prompt,
+                system_prompt: instruction,
                 student_data,
                 model_provider: selectedModel,
             },
@@ -191,23 +179,18 @@ ${coverLetterDoc?.parsed_text || '자기소개서 없음'}`
     }
 
     return (
-        <div className="flex h-[calc(100vh-80px)] overflow-hidden bg-gray-50 dark:bg-zinc-950">
+        <div className="flex h-[calc(100vh-64px)] overflow-hidden bg-gray-50 dark:bg-zinc-950">
 
             {/* 왼쪽 패널: 케이스 목록 */}
             <div className="w-60 flex-shrink-0 border-r border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex flex-col">
                 <div className="p-3 border-b border-gray-200 dark:border-zinc-800">
                     <button
                         onClick={handleNewCase}
-                        className={`w-full py-2 px-3 rounded-md text-sm font-semibold transition-colors ${
-                            isCreatingNew
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-blue-600 hover:bg-blue-700 text-white'
-                        }`}
+                        className="w-full py-2 px-3 rounded-md text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white transition-colors"
                     >
                         + 새 케이스
                     </button>
                 </div>
-
                 <div className="flex-1 overflow-y-auto">
                     {sessions.length === 0 && (
                         <div className="p-4 text-center text-xs text-gray-400 mt-4">
@@ -249,16 +232,13 @@ ${coverLetterDoc?.parsed_text || '자기소개서 없음'}`
 
             {/* 메인 콘텐츠 */}
             {isCreatingNew ? (
-                /* 새 케이스 생성 폼 */
                 <div className="flex-1 overflow-y-auto bg-white dark:bg-zinc-900">
                     <div className="max-w-2xl mx-auto p-8">
                         <div className="mb-8">
                             <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">새 컨설팅 케이스</h2>
                             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">고객 정보를 입력하고 이력서를 업로드하세요.</p>
                         </div>
-
                         <div className="space-y-5">
-                            {/* 고객 이름 */}
                             <div>
                                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
                                     고객(학생) 이름 <span className="font-normal text-gray-400">(선택)</span>
@@ -271,8 +251,6 @@ ${coverLetterDoc?.parsed_text || '자기소개서 없음'}`
                                     placeholder="홍길동"
                                 />
                             </div>
-
-                            {/* 회사명 */}
                             <div>
                                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
                                     지원 회사명 <span className="text-red-500">*</span>
@@ -285,8 +263,6 @@ ${coverLetterDoc?.parsed_text || '자기소개서 없음'}`
                                     placeholder="삼성전자, 카카오, LG화학 등"
                                 />
                             </div>
-
-                            {/* 지원 직무 */}
                             <div>
                                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
                                     지원 직무 <span className="font-normal text-gray-400">(선택)</span>
@@ -296,11 +272,9 @@ ${coverLetterDoc?.parsed_text || '자기소개서 없음'}`
                                     value={jobDesc}
                                     onChange={(e) => setJobDesc(e.target.value)}
                                     className="w-full rounded-lg border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                    placeholder="소프트웨어 엔지니어, 마케팅 기획, 재무회계 등"
+                                    placeholder="소프트웨어 엔지니어, 마케팅 기획 등"
                                 />
                             </div>
-
-                            {/* 이력서 + 자기소개서 PDF (통합 업로드) */}
                             <div>
                                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
                                     이력서 / 자기소개서 (PDF) <span className="text-red-500">*</span>
@@ -333,15 +307,11 @@ ${coverLetterDoc?.parsed_text || '자기소개서 없음'}`
                                     )}
                                 </div>
                             </div>
-
-                            {/* 에러 메시지 */}
                             {formError && (
                                 <div className="p-3 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 text-sm rounded-lg border border-red-200 dark:border-red-800">
                                     {formError}
                                 </div>
                             )}
-
-                            {/* 버튼 */}
                             <div className="flex gap-3 pt-2">
                                 <button
                                     onClick={handleCreateSession}
@@ -370,7 +340,6 @@ ${coverLetterDoc?.parsed_text || '자기소개서 없음'}`
                     </div>
                 </div>
             ) : !selectedSession ? (
-                /* 빈 상태 */
                 <div className="flex-1 flex items-center justify-center bg-gray-50 dark:bg-zinc-950">
                     <div className="text-center space-y-4">
                         <div className="w-16 h-16 bg-blue-50 dark:bg-blue-900/20 rounded-2xl flex items-center justify-center mx-auto">
@@ -391,7 +360,6 @@ ${coverLetterDoc?.parsed_text || '자기소개서 없음'}`
                     </div>
                 </div>
             ) : (
-                /* 기존 케이스 뷰 */
                 <div className="flex-1 flex h-full min-w-0 overflow-hidden">
 
                     {/* 가운데: 케이스 정보 */}
@@ -407,7 +375,6 @@ ${coverLetterDoc?.parsed_text || '자기소개서 없음'}`
                                 )}
                             </p>
                         </div>
-
                         <div className="space-y-6">
                             {selectedSession.documents?.length === 0 && (
                                 <p className="text-sm text-gray-400 italic">첨부된 문서가 없습니다.</p>
@@ -415,39 +382,29 @@ ${coverLetterDoc?.parsed_text || '자기소개서 없음'}`
                             {selectedSession.documents?.map((doc, i) => (
                                 <div key={i}>
                                     <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex justify-between items-center">
-                                        <span className="flex items-center gap-2">
-                                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                                                i === 0
-                                                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-                                                    : 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300'
-                                            }`}>
-                                                {i === 0 ? '이력서' : '자기소개서'}
-                                            </span>
+                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                            i === 0
+                                                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                                                : 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300'
+                                        }`}>
+                                            {i === 0 ? '이력서' : '자기소개서'}
                                         </span>
                                         {doc.file_url && (
-                                            <a
-                                                href={doc.file_url}
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                className="text-blue-600 hover:underline text-xs normal-case font-normal"
-                                            >
+                                            <a href={doc.file_url} target="_blank" rel="noreferrer"
+                                                className="text-blue-600 hover:underline text-xs normal-case font-normal">
                                                 새 탭에서 열기 →
                                             </a>
                                         )}
                                     </h4>
                                     <div className="h-72 w-full border border-gray-200 dark:border-zinc-800 rounded-lg overflow-hidden bg-gray-100 dark:bg-black">
-                                        <iframe
-                                            src={doc.file_url}
-                                            className="w-full h-full"
-                                            title={i === 0 ? '이력서' : '자기소개서'}
-                                        />
+                                        <iframe src={doc.file_url} className="w-full h-full" title={i === 0 ? '이력서' : '자기소개서'} />
                                     </div>
                                 </div>
                             ))}
                         </div>
                     </div>
 
-                    {/* 오른쪽: AI 생성 패널 */}
+                    {/* 오른쪽: AI 패널 */}
                     <div className="flex-1 p-6 flex flex-col bg-gray-50 dark:bg-zinc-950 h-full overflow-y-auto min-w-0">
                         <h3 className="text-xl font-bold mb-5 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent w-max">
                             AI 컨설턴트
@@ -478,29 +435,33 @@ ${coverLetterDoc?.parsed_text || '자기소개서 없음'}`
                             </div>
                         </div>
 
-                        {/* 분석 유형 선택 + 생성 */}
-                        <div className="mb-4">
-                            <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-2">분석 유형 선택</label>
-                            <div className="flex gap-2">
-                                <select
-                                    value={selectedPromptId}
-                                    onChange={(e) => setSelectedPromptId(e.target.value)}
-                                    className="flex-1 rounded-md border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                >
-                                    <option value="" disabled>어떤 분석을 할까요?</option>
-                                    {prompts.map((p) => (
-                                        <option key={p.id} value={p.id}>{p.title}</option>
-                                    ))}
-                                </select>
+                        {/* AI 지시사항 + 생성 버튼 */}
+                        <div className="mb-3">
+                            <div className="flex justify-between items-center mb-2">
+                                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider">AI 지시사항</label>
                                 <button
-                                    onClick={handleGenerate}
-                                    disabled={isLoading || !selectedPromptId}
-                                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-bold disabled:opacity-50 transition-colors whitespace-nowrap"
+                                    onClick={() => setInstruction(DEFAULT_INSTRUCTION)}
+                                    className="text-[10px] text-blue-500 hover:text-blue-700 font-medium"
                                 >
-                                    {isLoading ? '생성 중...' : '생성'}
+                                    기본값으로 초기화
                                 </button>
                             </div>
+                            <textarea
+                                value={instruction}
+                                onChange={(e) => setInstruction(e.target.value)}
+                                rows={6}
+                                className="w-full rounded-md border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
+                                placeholder="AI에게 어떤 분석을 원하는지 입력하세요..."
+                            />
                         </div>
+
+                        <button
+                            onClick={handleGenerate}
+                            disabled={isLoading || !instruction.trim()}
+                            className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-md text-sm font-bold disabled:opacity-50 transition-colors mb-4"
+                        >
+                            {isLoading ? '생성 중...' : '✦ AI 보고서 생성'}
+                        </button>
 
                         {aiError && (
                             <div className="mb-3 p-3 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 text-sm rounded-lg border border-red-200 dark:border-red-800">

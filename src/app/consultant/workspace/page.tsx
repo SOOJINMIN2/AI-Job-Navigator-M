@@ -27,12 +27,6 @@ export default async function ConsultantWorkspacePage() {
         `)
         .order('created_at', { ascending: false })
 
-    // 3. AI 프롬프트 조회
-    const { data: prompts } = await supabase
-        .from('ai_prompts')
-        .select('id, title, category, system_prompt')
-        .order('created_at', { ascending: false })
-
     return (
         <div className="min-h-screen flex flex-col">
             <header className="h-16 bg-white dark:bg-zinc-950 border-b border-gray-200 dark:border-zinc-800 px-6 flex items-center justify-between shadow-sm">
@@ -49,7 +43,6 @@ export default async function ConsultantWorkspacePage() {
             <main className="flex-1 bg-gray-50 dark:bg-zinc-950">
                 <WorkspaceUI
                     initialSessions={sessions as any || []}
-                    prompts={prompts || []}
                 />
             </main>
         </div>
