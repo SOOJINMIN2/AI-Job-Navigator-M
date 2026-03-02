@@ -118,8 +118,15 @@ export default function WorkspaceUI({
             }
 
             // 업로드 및 케이스 생성이 완료되었으므로 화면 상태 초기화 및 서버 갱신
+            // 서버 갱신 전 로컬 상태에 먼저 새 케이스를 띄워 체감 속도와 반영을 확실히 합니다.
+            setSessions(prev => [{
+                ...newSession,
+                documents: [] // 업로드된 문서는 나중에 새로고침 시 불러옴
+            }, ...prev])
+
             setIsCreatingNew(false)
             setFormStatus('idle')
+            router.push('/consultant/workspace')
             router.refresh()
 
         } catch (err: any) {
