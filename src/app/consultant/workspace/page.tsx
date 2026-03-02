@@ -18,11 +18,11 @@ export default async function ConsultantWorkspacePage() {
         .from('consulting_requests')
         .select(`
       id,
+      student_id,
       target_company,
       job_description_url_or_text,
       status,
       created_at,
-      users ( full_name ),
       documents ( file_url, parsed_text )
     `)
         .eq('status', 'pending')

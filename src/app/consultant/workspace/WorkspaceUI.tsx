@@ -6,11 +6,11 @@ import { saveFinalResult } from '@/lib/actions/consultant'
 
 type RequestType = {
     id: string
+    student_id: string
     target_company: string
     job_description_url_or_text: string
     status: string
     created_at: string
-    users: { full_name: string } | null
     documents: { file_url: string, parsed_text: string }[]
 }
 
@@ -80,7 +80,7 @@ Resume Document Text: ${selectedRequest.documents?.[0]?.parsed_text || 'No text 
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     final_content: completion,
-                    student_name: selectedRequest.users?.full_name || 'Student'
+                    student_name: 'Student'
                 })
             })
             const data = await response.json()
@@ -113,7 +113,7 @@ Resume Document Text: ${selectedRequest.documents?.[0]?.parsed_text || 'No text 
                             className={`p-4 border-b border-gray-100 dark:border-zinc-800 cursor-pointer transition-colors ${selectedRequest?.id === req.id ? 'bg-blue-50 dark:bg-zinc-800 border-l-4 border-l-blue-500' : 'hover:bg-gray-50 dark:hover:bg-zinc-800/50'}`}
                         >
                             <div className="font-medium text-gray-900 dark:text-gray-100">
-                                {req.users?.full_name || 'Unknown Student'}
+                                {req.target_company}
                             </div>
                             <div className="text-sm text-gray-500 mt-1">{req.target_company}</div>
                             <div className="text-xs text-gray-400 mt-2">
