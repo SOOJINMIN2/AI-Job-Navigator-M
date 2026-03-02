@@ -28,11 +28,11 @@ export default function UploadForm() {
             const fileInput = form.elements.namedItem('document') as HTMLInputElement
             const file = fileInput.files?.[0]
 
-            if (!file) throw new Error("A PDF document is required.")
+            if (!file) throw new Error("PDF 파일을 첨부해주세요.")
 
             // 1. Get current user
             const { data: { user } } = await supabase.auth.getUser()
-            if (!user) throw new Error("You must be logged in.")
+            if (!user) throw new Error("로그인이 필요합니다.")
 
             // 2. Create the Request Row in Supabase DB first (to get request_id)
             const { data: requestData, error: requestError } = await supabase
@@ -93,7 +93,7 @@ export default function UploadForm() {
 
             <div>
                 <label htmlFor="target_company" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Target Company & Role
+                    지원 회사 및 직무
                 </label>
                 <input
                     id="target_company"
@@ -102,13 +102,13 @@ export default function UploadForm() {
                     required
                     disabled={isSubmitting}
                     className="mt-1 block w-full rounded-md border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm placeholder-gray-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
-                    placeholder="e.g. Google - Software Engineer"
+                    placeholder="예: 삼성전자 - 소프트웨어 엔지니어"
                 />
             </div>
 
             <div>
                 <label htmlFor="job_description" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Job Description
+                    채용 공고 내용
                 </label>
                 <textarea
                     id="job_description"
@@ -117,13 +117,13 @@ export default function UploadForm() {
                     required
                     disabled={isSubmitting}
                     className="mt-1 block w-full rounded-md border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm placeholder-gray-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
-                    placeholder="Paste the job description or requirements here..."
+                    placeholder="채용 공고 내용이나 요구사항을 붙여넣어 주세요..."
                 />
             </div>
 
             <div>
                 <label htmlFor="document" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Upload Resume / Portfolio (PDF)
+                    이력서 / 포트폴리오 업로드 (PDF)
                 </label>
                 <div className="mt-1 flex justify-center rounded-lg border border-dashed border-gray-900/25 dark:border-zinc-700 px-6 py-10 w-full bg-gray-50 dark:bg-zinc-800/50">
                     <div className="text-center">
@@ -132,12 +132,12 @@ export default function UploadForm() {
                                 htmlFor="document"
                                 className={`relative cursor-pointer rounded-md bg-transparent font-semibold text-blue-600 focus-within:outline-none focus-within:ring-2 focus-within:ring-blue-600 focus-within:ring-offset-2 hover:text-blue-500 ${isSubmitting && 'opacity-50 cursor-not-allowed'}`}
                             >
-                                <span>Upload a file</span>
+                                <span>파일 선택</span>
                                 <input id="document" name="document" type="file" className="sr-only" accept=".pdf" required disabled={isSubmitting} />
                             </label>
-                            <p className="mt-1">or drag and drop</p>
+                            <p className="mt-1">또는 드래그 앤 드롭</p>
                         </div>
-                        <p className="text-xs leading-5 text-gray-600 dark:text-gray-400 mt-2">PDF up to 5MB</p>
+                        <p className="text-xs leading-5 text-gray-600 dark:text-gray-400 mt-2">PDF 최대 5MB</p>
                     </div>
                 </div>
             </div>
@@ -151,9 +151,9 @@ export default function UploadForm() {
                     {isSubmitting ? (
                         <>
                             <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                            Processing Document...
+                            문서 처리 중...
                         </>
-                    ) : 'Submit Request'}
+                    ) : '컨설팅 요청 제출'}
                 </button>
             </div>
         </form>
