@@ -12,8 +12,8 @@ export async function POST(req: Request) {
     if (!user) return new Response('Unauthorized', { status: 401 })
 
     // Validate consultant
-    const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
-    if (profile?.role !== 'consultant') return new Response('Forbidden', { status: 403 })
+    const { data: role } = await supabase.rpc('get_my_role')
+    if (role !== 'consultant') return new Response('Forbidden', { status: 403 })
 
     const { system_prompt, student_data } = await req.json()
 

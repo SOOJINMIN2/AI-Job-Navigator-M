@@ -10,8 +10,8 @@ export async function saveFinalResult(requestId: string, finalContent: string) {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) throw new Error('Unauthorized')
 
-    const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
-    if (profile?.role !== 'consultant') throw new Error('Forbidden')
+    const { data: role } = await supabase.rpc('get_my_role')
+    if (role !== 'consultant') throw new Error('Forbidden')
 
     // 2. Upsert into results table
     // We check if a result already exists to either insert or update

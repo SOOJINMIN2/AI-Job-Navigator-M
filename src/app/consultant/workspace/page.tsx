@@ -9,8 +9,8 @@ export default async function ConsultantWorkspacePage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) redirect('/login')
 
-    const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
-    if (profile?.role !== 'consultant') redirect('/student/dashboard')
+    const { data: role } = await supabase.rpc('get_my_role')
+    if (role !== 'consultant') redirect('/student/dashboard')
 
     // 2. Fetch pending requests with user names and their uploaded documents
     // Assuming one document per request for now based on the form
