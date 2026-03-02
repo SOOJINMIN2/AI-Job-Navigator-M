@@ -37,8 +37,7 @@ export default function WorkspaceUI({
     const [clientName, setClientName] = useState('')
     const [company, setCompany] = useState('')
     const [jobDesc, setJobDesc] = useState('')
-    const [coverLetter, setCoverLetter] = useState('')
-    const [resumeFile, setResumeFile] = useState<File | null>(null)
+    const [pdfFiles, setPdfFiles] = useState<File[]>([])          // 최대 2개 (이력서, 자소서)
     const [formStatus, setFormStatus] = useState<'idle' | 'submitting' | 'error'>('idle')
     const [formError, setFormError] = useState('')
 
@@ -62,8 +61,7 @@ export default function WorkspaceUI({
         setClientName('')
         setCompany('')
         setJobDesc('')
-        setCoverLetter('')
-        setResumeFile(null)
+        setPdfFiles([])
     }
 
     const handleSelectSession = (s: SessionType) => {
@@ -73,13 +71,18 @@ export default function WorkspaceUI({
         setSelectedPromptId('')
     }
 
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const selected = Array.from(e.target.files || []).slice(0, 2) // 최대 2개
+        setPdfFiles(selected)
+    }
+
     const handleCreateSession = async () => {
         if (!company.trim()) {
             setFormError('회사명은 필수 입력 항목입니다.')
             return
         }
-        if (!resumeFile) {
-            setFormError('이력서 PDF 파일을 선택해주세요.')
+        if (pdfFiles.length === 0) {
+            setFormError('이력서 PDF 파일을 1개 이상 선택해주세요.')
             return
         }
         setFormStatus('submitting')
@@ -91,27 +94,29 @@ export default function WorkspaceUI({
             fd.append('client_name', clientName)
             fd.append('company', company)
             fd.append('job_description', jobDesc)
-            fd.append('cover_letter', coverLetter)
 
             const newSession = await createConsultantSession(fd)
 
-            // 2. PDF 업로드 및 파싱
-            const uploadFd = new FormData()
-            uploadFd.append('file', resumeFile)
-            uploadFd.append('request_id', newSession.id)
-            uploadFd.append('document_type', 'resume')
+            // 2. PDF 순서대로 업로드: 첫 번째=이력서, 두 번째=자소서
+            const docTypes = ['resume', 'cover_letter']
+            for (let i = 0; i < pdfFiles.length; i++) {
+                const uploadFd = new FormData()
+                uploadFd.append('file', pdfFiles[i])
+                uploadFd.append('request_id', newSession.id)
+                uploadFd.append('document_type', docTypes[i])
 
-            const uploadRes = await fetch('/api/upload-document', {
-                method: 'POST',
-                body: uploadFd,
-            })
+                const uploadRes = await fetch('/api/upload-document', {
+                    method: 'POST',
+                    body: uploadFd,
+                })
 
-            if (!uploadRes.ok) {
-                const errData = await uploadRes.json()
-                throw new Error(errData.error || 'PDF 업로드 실패')
+                if (!uploadRes.ok) {
+                    const errData = await uploadRes.json()
+                    throw new Error(errData.error || `PDF 업로드 실패 (${docTypes[i]})`)
+                }
             }
 
-            // 3. 최신 데이터로 새로고침 (document 정보 반영)
+            // 3. 최신 데이터로 새로고침
             window.location.reload()
         } catch (err: any) {
             setFormError(err.message || '케이스 생성에 실패했습니다.')
@@ -125,14 +130,19 @@ export default function WorkspaceUI({
         const prompt = prompts.find((p) => p.id === selectedPromptId)
         if (!prompt) return
 
+        const docs = selectedSession.documents || []
+        const resumeDoc = docs[0]
+        const coverLetterDoc = docs[1]
+
         const student_data = `고객명: ${selectedSession.client_name || '미입력'}
 지원 회사: ${selectedSession.target_company || '미입력'}
 지원 직무: ${selectedSession.job_description_url_or_text || '미입력'}
-자기소개서:
-${selectedSession.cover_letter_text || '첨부된 자기소개서 없음'}
 
-이력서 텍스트 (PDF 추출):
-${selectedSession.documents?.[0]?.parsed_text || '이력서 텍스트 없음'}`
+[이력서 텍스트]
+${resumeDoc?.parsed_text || '이력서 없음'}
+
+[자기소개서 텍스트]
+${coverLetterDoc?.parsed_text || '자기소개서 없음'}`
 
         await complete('', {
             body: {
@@ -290,40 +300,38 @@ ${selectedSession.documents?.[0]?.parsed_text || '이력서 텍스트 없음'}`
                                 />
                             </div>
 
-                            {/* 이력서 PDF */}
+                            {/* 이력서 + 자기소개서 PDF (통합 업로드) */}
                             <div>
                                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-                                    이력서 (PDF) <span className="text-red-500">*</span>
+                                    이력서 / 자기소개서 (PDF) <span className="text-red-500">*</span>
                                 </label>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                                    파일을 1개 또는 2개 선택하세요.
+                                    <span className="text-blue-600 dark:text-blue-400 font-medium"> 첫 번째 파일 = 이력서, 두 번째 파일 = 자기소개서</span>
+                                </p>
                                 <div className="border-2 border-dashed border-gray-300 dark:border-zinc-700 rounded-lg p-4 hover:border-blue-400 dark:hover:border-blue-500 transition-colors">
                                     <input
                                         type="file"
                                         accept=".pdf"
-                                        onChange={(e) => setResumeFile(e.target.files?.[0] || null)}
+                                        multiple
+                                        onChange={handleFileChange}
                                         className="w-full text-sm text-gray-700 dark:text-gray-300 file:mr-3 file:py-1.5 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 dark:file:bg-blue-900/30 file:text-blue-700 dark:file:text-blue-400 hover:file:bg-blue-100 cursor-pointer"
                                     />
-                                    {resumeFile ? (
-                                        <p className="mt-2 text-xs text-blue-600 dark:text-blue-400 font-medium">
-                                            ✓ {resumeFile.name} ({(resumeFile.size / 1024).toFixed(1)} KB)
-                                        </p>
+                                    {pdfFiles.length > 0 ? (
+                                        <div className="mt-2 space-y-1">
+                                            {pdfFiles.map((f, i) => (
+                                                <p key={i} className="text-xs text-blue-600 dark:text-blue-400 font-medium flex items-center gap-1.5">
+                                                    <span className="inline-block bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 text-[10px] font-bold px-1.5 py-0.5 rounded">
+                                                        {i === 0 ? '이력서' : '자소서'}
+                                                    </span>
+                                                    {f.name} ({(f.size / 1024).toFixed(1)} KB)
+                                                </p>
+                                            ))}
+                                        </div>
                                     ) : (
-                                        <p className="mt-2 text-xs text-gray-400">PDF 형식만 지원됩니다</p>
+                                        <p className="mt-2 text-xs text-gray-400">PDF 파일을 선택하세요 (최대 2개)</p>
                                     )}
                                 </div>
-                            </div>
-
-                            {/* 자기소개서 */}
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-                                    자기소개서 <span className="font-normal text-gray-400">(선택)</span>
-                                </label>
-                                <textarea
-                                    value={coverLetter}
-                                    onChange={(e) => setCoverLetter(e.target.value)}
-                                    rows={10}
-                                    className="w-full rounded-lg border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
-                                    placeholder="고객의 자기소개서 내용을 여기에 붙여넣으세요..."
-                                />
                             </div>
 
                             {/* 에러 메시지 */}
@@ -401,41 +409,41 @@ ${selectedSession.documents?.[0]?.parsed_text || '이력서 텍스트 없음'}`
                         </div>
 
                         <div className="space-y-6">
-                            {selectedSession.cover_letter_text && (
-                                <div>
-                                    <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">자기소개서</h4>
-                                    <div className="bg-gray-50 dark:bg-zinc-950 p-4 rounded-lg text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap border border-gray-200 dark:border-zinc-800 max-h-64 overflow-y-auto leading-relaxed">
-                                        {selectedSession.cover_letter_text}
-                                    </div>
-                                </div>
+                            {selectedSession.documents?.length === 0 && (
+                                <p className="text-sm text-gray-400 italic">첨부된 문서가 없습니다.</p>
                             )}
-
-                            <div>
-                                <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex justify-between items-center">
-                                    이력서 (PDF)
-                                    {selectedSession.documents?.[0]?.file_url && (
-                                        <a
-                                            href={selectedSession.documents[0].file_url}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className="text-blue-600 hover:underline text-xs normal-case font-normal"
-                                        >
-                                            새 탭에서 열기 →
-                                        </a>
-                                    )}
-                                </h4>
-                                {selectedSession.documents?.[0]?.file_url ? (
-                                    <div className="h-96 w-full border border-gray-200 dark:border-zinc-800 rounded-lg overflow-hidden bg-gray-100 dark:bg-black">
+                            {selectedSession.documents?.map((doc, i) => (
+                                <div key={i}>
+                                    <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex justify-between items-center">
+                                        <span className="flex items-center gap-2">
+                                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                                i === 0
+                                                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                                                    : 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300'
+                                            }`}>
+                                                {i === 0 ? '이력서' : '자기소개서'}
+                                            </span>
+                                        </span>
+                                        {doc.file_url && (
+                                            <a
+                                                href={doc.file_url}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="text-blue-600 hover:underline text-xs normal-case font-normal"
+                                            >
+                                                새 탭에서 열기 →
+                                            </a>
+                                        )}
+                                    </h4>
+                                    <div className="h-72 w-full border border-gray-200 dark:border-zinc-800 rounded-lg overflow-hidden bg-gray-100 dark:bg-black">
                                         <iframe
-                                            src={selectedSession.documents[0].file_url}
+                                            src={doc.file_url}
                                             className="w-full h-full"
-                                            title="이력서"
+                                            title={i === 0 ? '이력서' : '자기소개서'}
                                         />
                                     </div>
-                                ) : (
-                                    <p className="text-sm text-gray-400 italic">첨부된 이력서가 없습니다.</p>
-                                )}
-                            </div>
+                                </div>
+                            ))}
                         </div>
                     </div>
 
