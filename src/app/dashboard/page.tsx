@@ -19,8 +19,9 @@ export default async function DashboardPage() {
         .single()
 
     if (profileError || !profile) {
-        // If the trigger hasn't fired yet or there's an issue
-        return <div>Error loading profile... Please try refreshing.</div>
+        // Profile not found - sign out and redirect to login
+        await supabase.auth.signOut()
+        redirect('/login')
     }
 
     // 3. Redirect to explicit routes based on Role
