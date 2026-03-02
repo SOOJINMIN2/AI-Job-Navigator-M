@@ -91,11 +91,15 @@ export default function WorkspaceUI({
         setFormError('')
 
         try {
+            console.log("Submitting case creation...");
             const fd = new FormData()
             fd.append('client_name', clientName)
             fd.append('company', company)
             fd.append('job_description', jobDesc)
+
+            console.log("Calling createConsultantSession API action...");
             const newSession = await createConsultantSession(fd)
+            console.log("Session created:", newSession);
 
             const docTypes = ['resume', 'cover_letter']
             const uploadedDocs = []
@@ -106,6 +110,7 @@ export default function WorkspaceUI({
                 uploadFd.append('request_id', newSession.id)
                 uploadFd.append('document_type', docTypes[i])
 
+                console.log(`Uploading document ${i + 1}/${pdfFiles.length}...`);
                 const uploadRes = await fetch('/api/upload-document', {
                     method: 'POST',
                     body: uploadFd,
@@ -115,6 +120,7 @@ export default function WorkspaceUI({
                 if (!uploadRes.ok) {
                     throw new Error(responseData.error || `PDF 업로드 실패 (${docTypes[i]})`)
                 }
+                console.log(`Upload ${i + 1} successful`);
             }
 
             // 업로드 및 케이스 생성이 완료되었으므로 화면 상태 초기화 및 서버 갱신
@@ -126,10 +132,11 @@ export default function WorkspaceUI({
 
             setIsCreatingNew(false)
             setFormStatus('idle')
-            router.push('/consultant/workspace')
             router.refresh()
 
         } catch (err: any) {
+            console.error("Case creation error:", err);
+            alert(`오류 발생: ${err.message || '케이스 생성 실패 (서버 로그 확인 필요)'}`);
             setFormError(err.message || '케이스 생성에 실패했습니다.')
             setFormStatus('error')
         }
