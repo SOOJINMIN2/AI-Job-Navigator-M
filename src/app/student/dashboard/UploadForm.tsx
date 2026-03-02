@@ -8,6 +8,7 @@ export default function UploadForm() {
     const router = useRouter()
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [errorMsg, setErrorMsg] = useState('')
+    const [selectedFileName, setSelectedFileName] = useState('')
 
     // We instantiate a minimal client here to create the parent request row
     // Using the new environment variables
@@ -73,6 +74,7 @@ export default function UploadForm() {
 
             // Success! Refresh the page data.
             form.reset()
+            setSelectedFileName('')
             router.refresh()
 
         } catch (err: any) {
@@ -133,11 +135,24 @@ export default function UploadForm() {
                                 className={`relative cursor-pointer rounded-md bg-transparent font-semibold text-blue-600 focus-within:outline-none focus-within:ring-2 focus-within:ring-blue-600 focus-within:ring-offset-2 hover:text-blue-500 ${isSubmitting && 'opacity-50 cursor-not-allowed'}`}
                             >
                                 <span>파일 선택</span>
-                                <input id="document" name="document" type="file" className="sr-only" accept=".pdf" required disabled={isSubmitting} />
+                                <input
+                                    id="document"
+                                    name="document"
+                                    type="file"
+                                    className="sr-only"
+                                    accept=".pdf"
+                                    required
+                                    disabled={isSubmitting}
+                                    onChange={(e) => setSelectedFileName(e.target.files?.[0]?.name || '')}
+                                />
                             </label>
                             <p className="mt-1">또는 드래그 앤 드롭</p>
                         </div>
-                        <p className="text-xs leading-5 text-gray-600 dark:text-gray-400 mt-2">PDF 최대 5MB</p>
+                        {selectedFileName ? (
+                            <p className="text-xs leading-5 text-blue-600 dark:text-blue-400 mt-2 font-medium">✓ {selectedFileName}</p>
+                        ) : (
+                            <p className="text-xs leading-5 text-gray-600 dark:text-gray-400 mt-2">PDF 최대 5MB</p>
+                        )}
                     </div>
                 </div>
             </div>
