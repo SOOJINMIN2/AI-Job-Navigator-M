@@ -42,7 +42,7 @@ export default async function ConsultantWorkspacePage() {
 
             <main className="flex-1 bg-gray-50 dark:bg-zinc-950">
                 <WorkspaceUI
-                    initialSessions={sessions as any || []}
+                    initialSessions={sessions ? JSON.parse(JSON.stringify(sessions)) : []}
                 />
             </main>
         </div>
