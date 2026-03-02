@@ -1,9 +1,15 @@
 import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
 import Link from 'next/link'
 
 export default async function Home() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
+
+  // 로그인 상태면 바로 워크스페이스로
+  if (user) {
+    redirect('/consultant/workspace')
+  }
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center p-8 bg-gradient-to-br from-indigo-50 to-blue-100 dark:from-zinc-950 dark:to-zinc-900">
@@ -15,33 +21,23 @@ export default async function Home() {
         </h1>
 
         <p className="mt-6 text-lg leading-8 text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-          Elevate your career prospects. Upload your resume and get expert-level, AI-driven consulting tailored to your dream company and role.
+          AI 기반 취업 컨설팅 플랫폼.<br />
+          이력서·자소서를 분석하고 맞춤형 컨설팅 보고서를 생성하세요.
         </p>
 
         <div className="mt-10 flex items-center justify-center gap-x-6">
-          {user ? (
-            <Link
-              href="/dashboard"
-              className="rounded-full bg-blue-600 px-8 py-3.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 transition-all hover:scale-105"
-            >
-              Go to Dashboard
-            </Link>
-          ) : (
-            <>
-              <Link
-                href="/signup"
-                className="rounded-full bg-blue-600 px-8 py-3.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 transition-all hover:scale-105"
-              >
-                Get Started
-              </Link>
-              <Link
-                href="/login"
-                className="text-sm font-semibold leading-6 text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-              >
-                Sign in <span aria-hidden="true">→</span>
-              </Link>
-            </>
-          )}
+          <Link
+            href="/login"
+            className="rounded-full bg-blue-600 px-8 py-3.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 transition-all hover:scale-105"
+          >
+            로그인
+          </Link>
+          <Link
+            href="/signup"
+            className="text-sm font-semibold leading-6 text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+          >
+            계정 만들기 <span aria-hidden="true">→</span>
+          </Link>
         </div>
       </main>
     </div>

@@ -21,7 +21,7 @@ export async function login(formData: FormData) {
     redirect(`/login?error=${encodeURIComponent(error.message)}`)
   }
 
-  // 로그인 성공 시 메인 페이지로 이동
+  // 로그인 성공 시 워크스페이스로 이동
   revalidatePath('/', 'layout')
-  redirect('/')
+  redirect('/consultant/workspace')
 }
