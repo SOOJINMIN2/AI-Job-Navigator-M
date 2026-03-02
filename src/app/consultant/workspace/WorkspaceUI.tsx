@@ -478,18 +478,18 @@ ${coverLetterDoc?.parsed_text || '자기소개서 없음'}`
                             </div>
                         </div>
 
-                        {/* 프롬프트 선택 + 생성 */}
+                        {/* 분석 유형 선택 + 생성 */}
                         <div className="mb-4">
-                            <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-2">프롬프트 선택</label>
+                            <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-2">분석 유형 선택</label>
                             <div className="flex gap-2">
                                 <select
                                     value={selectedPromptId}
                                     onChange={(e) => setSelectedPromptId(e.target.value)}
                                     className="flex-1 rounded-md border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                                 >
-                                    <option value="" disabled>프롬프트를 선택하세요...</option>
+                                    <option value="" disabled>어떤 분석을 할까요?</option>
                                     {prompts.map((p) => (
-                                        <option key={p.id} value={p.id}>[{p.category}] {p.title}</option>
+                                        <option key={p.id} value={p.id}>{p.title}</option>
                                     ))}
                                 </select>
                                 <button
