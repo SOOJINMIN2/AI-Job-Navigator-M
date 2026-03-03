@@ -3,19 +3,15 @@ import { redirect } from 'next/navigation'
 import WorkspaceClient from './WorkspaceClient'
 
 // Since the folder is [id], params.id is available
-export default async function WorkspacePage({ params }: { params: { id: string } }) {
+export default async function WorkspacePage({ params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params
     const supabase = await createClient()
 
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) redirect('/login')
 
-    const { data: profile } = await supabase
-        .from('users')
-        .select('role')
-        .eq('id', user.id)
-        .single()
-
-    if (profile?.role !== 'consultant') {
+    const { data: role } = await supabase.rpc('get_my_role')
+    if (role !== 'consultant') {
         redirect('/dashboard')
     }
 
@@ -27,7 +23,7 @@ export default async function WorkspacePage({ params }: { params: { id: string }
       target_company,
       documents ( id, parsed_text )
     `)
-        .eq('id', params.id)
+        .eq('id', id)
         .single()
 
     if (!request || !request.documents || request.documents.length === 0) {

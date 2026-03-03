@@ -73,7 +73,9 @@ export async function POST(req: Request) {
 
         if (documentError) {
             console.error('Document DB Insert Error:', documentError)
-            return NextResponse.json({ error: 'Failed to save document record' }, { status: 500 })
+            return NextResponse.json({
+                error: `DB Error: ${documentError.message} (code: ${documentError.code}, hint: ${documentError.hint})`
+            }, { status: 500 })
         }
 
         // Success

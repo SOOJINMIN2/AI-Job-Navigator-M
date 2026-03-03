@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import DownloadButtonClient from './DownloadButtonClient'
 
-export default async function StudentResultPage({ params }: { params: { id: string } }) {
+export default async function StudentResultPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params
     const supabase = await createClient()
 

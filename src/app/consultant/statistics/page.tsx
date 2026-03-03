@@ -10,8 +10,8 @@ export default async function ConsultantStatisticsPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) redirect('/login')
 
-    const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
-    if (profile?.role !== 'consultant') redirect('/student/dashboard')
+    const { data: role } = await supabase.rpc('get_my_role')
+    if (role !== 'consultant') redirect('/student/dashboard')
 
     // 2. Fetch full snapshot of requests for calculations
     const { data: requests, error } = await supabase
