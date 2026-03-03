@@ -103,7 +103,8 @@ CREATE POLICY "Consultants can delete requests" ON public.consulting_requests
   );
 
 -- 3. documents Policies
-CREATE POLICY "Students can manage own documents" ON public.documents
+CREATE POLICY "Students can view own documents" ON public.documents
+  FOR SELECT
   USING (
     EXISTS (
       SELECT 1 FROM public.consulting_requests
@@ -112,7 +113,11 @@ CREATE POLICY "Students can manage own documents" ON public.documents
   );
 
 CREATE POLICY "Consultants can manage all documents" ON public.documents
+  FOR ALL
   USING (
+    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'consultant')
+  )
+  WITH CHECK (
     EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'consultant')
   );
 

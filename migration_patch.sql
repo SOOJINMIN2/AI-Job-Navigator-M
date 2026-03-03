@@ -90,7 +90,40 @@ BEGIN
   END IF;
 END $$;
 
--- 확인: 변경사항 조회
+-- 6. documents RLS 정책 완전 재설정 (INSERT WITH CHECK 누락 버그 수정)
+-- 기존 정책을 모두 DROP하고 명시적 USING + WITH CHECK로 재생성
+DROP POLICY IF EXISTS "Students can manage own documents" ON public.documents;
+DROP POLICY IF EXISTS "Consultants can manage all documents" ON public.documents;
+DROP POLICY IF EXISTS "Consultants can insert documents" ON public.documents;
+DROP POLICY IF EXISTS "Consultants can delete documents" ON public.documents;
+
+-- Students: 자신의 request에 연결된 documents만 조회 가능
+CREATE POLICY "Students can view own documents" ON public.documents
+  FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.consulting_requests
+      WHERE id = request_id AND student_id = auth.uid()
+    )
+  );
+
+-- Consultants: documents 전체 관리 (USING + WITH CHECK 명시)
+CREATE POLICY "Consultants can manage all documents" ON public.documents
+  FOR ALL
+  USING (
+    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'consultant')
+  )
+  WITH CHECK (
+    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'consultant')
+  );
+
+-- 확인: documents 정책 목록
+SELECT policyname, cmd, qual, with_check
+FROM pg_policies
+WHERE tablename = 'documents'
+ORDER BY policyname;
+
+-- 확인: consulting_requests 컬럼 목록
 SELECT column_name, data_type, is_nullable
 FROM information_schema.columns
 WHERE table_schema = 'public'
