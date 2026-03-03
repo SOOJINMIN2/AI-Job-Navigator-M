@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import { useCompletion } from '@ai-sdk/react'
+import { useRouter } from 'next/navigation'
+import { saveFinalResult } from '@/lib/actions/consultant'
 
 type WorkspaceProps = {
     requestId: string
@@ -17,6 +19,8 @@ export default function WorkspaceClient({
     prompts
 }: WorkspaceProps) {
     const [selectedPrompt, setSelectedPrompt] = useState(prompts[0]?.id || '')
+    const [isSaving, setIsSaving] = useState(false)
+    const router = useRouter()
 
     // The hook that handles calling our /api/chat route and streaming the response
     const { completion, complete, isLoading, error } = useCompletion({
@@ -32,7 +36,19 @@ export default function WorkspaceClient({
         if (!selectedPrompt) return
         // Trigger the actual API call. The empty string is required by the SDK type
         // but we have full control over the prompt body in the useCompletion hook
-        await complete('')
+        await complete('generate_report')
+    }
+
+    const handleSave = async () => {
+        if (!completion) return
+        try {
+            setIsSaving(true)
+            await saveFinalResult(requestId, completion)
+            router.push('/dashboard')
+        } catch (err: any) {
+            alert(`Failed to save result: ${err.message}`)
+            setIsSaving(false)
+        }
     }
 
     return (
@@ -95,8 +111,17 @@ export default function WorkspaceClient({
                     <div className="border-b border-gray-200 dark:border-zinc-800 px-6 py-4 flex items-center justify-between bg-gray-50/50 dark:bg-zinc-900/50 rounded-t-xl">
                         <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">AI Analysis Result</h3>
                         {completion && (
-                            <button className="text-sm text-blue-600 hover:text-blue-500 font-medium transition-colors">
-                                Save Draft
+                            <button
+                                onClick={handleSave}
+                                disabled={isSaving}
+                                className="text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-md transition-colors disabled:opacity-50 flex items-center gap-2"
+                            >
+                                {isSaving ? (
+                                    <>
+                                        <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                        Saving...
+                                    </>
+                                ) : 'Save Content & Complete'}
                             </button>
                         )}
                     </div>

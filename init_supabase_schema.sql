@@ -71,36 +71,37 @@ ALTER TABLE public.results ENABLE ROW LEVEL SECURITY;
 -- RLS Policies
 -- ============================================================
 
+-- Helper Function: 무한 루프 방지를 위한 권한 확인 함수
+CREATE OR REPLACE FUNCTION public.check_is_consultant()
+RETURNS BOOLEAN AS $$
+DECLARE
+  user_role TEXT;
+BEGIN
+  SELECT role INTO user_role FROM public.users WHERE id = auth.uid();
+  RETURN user_role = 'consultant';
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
 -- 1. users Policies
 CREATE POLICY "Users can view own profile" ON public.users FOR SELECT USING (auth.uid() = id);
 CREATE POLICY "Users can update own profile" ON public.users FOR UPDATE USING (auth.uid() = id);
-CREATE POLICY "Consultants can view all users" ON public.users FOR SELECT USING (
-  EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'consultant')
-);
+CREATE POLICY "Consultants can view all users" ON public.users FOR SELECT USING (public.check_is_consultant());
 
 -- 2. consulting_requests Policies
 CREATE POLICY "Students can manage own requests" ON public.consulting_requests
   FOR ALL USING (auth.uid() = student_id);
 
 CREATE POLICY "Consultants can insert requests" ON public.consulting_requests
-  FOR INSERT WITH CHECK (
-    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'consultant')
-  );
+  FOR INSERT WITH CHECK (public.check_is_consultant());
 
 CREATE POLICY "Consultants can view all requests" ON public.consulting_requests
-  FOR SELECT USING (
-    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'consultant')
-  );
+  FOR SELECT USING (public.check_is_consultant());
 
 CREATE POLICY "Consultants can update all requests" ON public.consulting_requests
-  FOR UPDATE USING (
-    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'consultant')
-  );
+  FOR UPDATE USING (public.check_is_consultant());
 
 CREATE POLICY "Consultants can delete requests" ON public.consulting_requests
-  FOR DELETE USING (
-    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'consultant')
-  );
+  FOR DELETE USING (public.check_is_consultant());
 
 -- 3. documents Policies
 CREATE POLICY "Students can view own documents" ON public.documents
@@ -114,18 +115,12 @@ CREATE POLICY "Students can view own documents" ON public.documents
 
 CREATE POLICY "Consultants can manage all documents" ON public.documents
   FOR ALL
-  USING (
-    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'consultant')
-  )
-  WITH CHECK (
-    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'consultant')
-  );
+  USING (public.check_is_consultant())
+  WITH CHECK (public.check_is_consultant());
 
 -- 4. ai_prompts Policies
 CREATE POLICY "Consultants can manage all ai_prompts" ON public.ai_prompts
-  FOR ALL USING (
-    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'consultant')
-  );
+  FOR ALL USING (public.check_is_consultant());
 
 -- 5. results Policies
 CREATE POLICY "Students can view own results" ON public.results
@@ -137,9 +132,7 @@ CREATE POLICY "Students can view own results" ON public.results
   );
 
 CREATE POLICY "Consultants can manage all results" ON public.results
-  FOR ALL USING (
-    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'consultant')
-  );
+  FOR ALL USING (public.check_is_consultant());
 
 -- ============================================================
 -- Helper Function: get_my_role()
@@ -190,6 +183,5 @@ CREATE POLICY "Public read access for documents"
 CREATE POLICY "Consultants can delete documents"
   ON storage.objects FOR DELETE
   USING (
-    bucket_id = 'documents' AND
-    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'consultant')
+    bucket_id = 'documents' AND public.check_is_consultant()
   );

@@ -1,10 +1,16 @@
 import { Document, Page, Text, View, StyleSheet, Font } from '@react-pdf/renderer'
 
+// Register Korean Font to avoid character breaking
+Font.register({
+    family: 'Pretendard',
+    src: 'https://cdn.jsdelivr.net/gh/orioncactus/pretendard/packages/pretendard/dist/public/static/Pretendard-Medium.ttf',
+})
+
 // Define styling to look clean and professional
 const styles = StyleSheet.create({
     page: {
         padding: 60,
-        fontFamily: 'Helvetica',
+        fontFamily: 'Pretendard',
         backgroundColor: '#ffffff',
     },
     headerBox: {

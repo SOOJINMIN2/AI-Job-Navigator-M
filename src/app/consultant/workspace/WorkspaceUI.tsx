@@ -160,12 +160,19 @@ export default function WorkspaceUI({
         if (!confirm('이 케이스를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) return
         setIsDeletingId(id)
         try {
-            await deleteSession(id)
+            const res = await deleteSession(id)
+            if (res && typeof res === 'object' && 'error' in res && res.error) {
+                alert(`삭제 실패: ${res.error}`)
+                setIsDeletingId(null)
+                return
+            }
+            // Proceed with UI update on success (or if void return was historically a success)
             setSessions(prev => prev.filter(s => s.id !== id))
             if (selectedSession?.id === id) {
                 setSelectedSession(null)
                 setCompletion('')
             }
+            router.refresh()
         } catch (err: any) {
             alert(`삭제 실패: ${err.message}`)
         } finally {
@@ -190,7 +197,7 @@ ${resumeDoc?.parsed_text || '이력서 없음'}
 [자기소개서 텍스트]
 ${coverLetterDoc?.parsed_text || '자기소개서 없음'}`
 
-        await complete('', {
+        await complete('generate_report', {
             body: {
                 system_prompt: SYSTEM_PROMPT,
                 student_data,

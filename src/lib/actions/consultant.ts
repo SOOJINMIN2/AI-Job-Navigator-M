@@ -45,27 +45,32 @@ export async function createConsultantSession(formData: FormData) {
 }
 
 export async function deleteSession(requestId: string) {
-    const supabase = await createClient()
+    try {
+        const supabase = await createClient()
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) throw new Error('로그인이 필요합니다.')
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        if (authError || !user) return { success: false, error: '로그인이 필요합니다.' }
 
-    const { data: role } = await supabase.rpc('get_my_role')
-    if (role !== 'consultant') throw new Error('컨설턴트 권한이 필요합니다.')
+        const { data: role } = await supabase.rpc('get_my_role')
+        if (role !== 'consultant') return { success: false, error: '컨설턴트 권한이 필요합니다.' }
 
-    // results → documents → consulting_requests 순서로 삭제 (FK 제약 대비)
-    await supabase.from('results').delete().eq('request_id', requestId)
-    await supabase.from('documents').delete().eq('request_id', requestId)
+        const res1 = await supabase.from('results').delete().eq('request_id', requestId)
+        if (res1.error) return { success: false, error: res1.error.message }
 
-    const { error } = await supabase
-        .from('consulting_requests')
-        .delete()
-        .eq('id', requestId)
+        const res2 = await supabase.from('documents').delete().eq('request_id', requestId)
+        if (res2.error) return { success: false, error: res2.error.message }
 
-    if (error) throw new Error(`삭제 실패: ${error.message}`)
+        const { error } = await supabase
+            .from('consulting_requests')
+            .delete()
+            .eq('id', requestId)
 
-    revalidatePath('/consultant/workspace')
-    return { success: true }
+        if (error) return { success: false, error: error.message }
+
+        return { success: true }
+    } catch (err: any) {
+        return { success: false, error: err.message }
+    }
 }
 
 export async function saveFinalResult(requestId: string, finalContent: string) {
