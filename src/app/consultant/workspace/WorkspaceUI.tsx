@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { useCompletion } from '@ai-sdk/react'
 import { saveFinalResult, createConsultantSession, deleteSession } from '@/lib/actions/consultant'
 
 type SessionType = {
@@ -60,9 +59,10 @@ export default function WorkspaceUI({
     const [isExportingDocs, setIsExportingDocs] = useState(false)
     const [isDeletingId, setIsDeletingId] = useState<string | null>(null)
 
-    const { completion, setCompletion, complete, isLoading, error: aiError } = useCompletion({
-        api: '/api/generate',
-    })
+    // AI 생성 상태 (useCompletion 대신 직접 fetch + ReadableStream 사용)
+    const [completion, setCompletion] = useState('')
+    const [isLoading, setIsLoading] = useState(false)
+    const [aiError, setAiError] = useState<Error | null>(null)
 
     const handleNewCase = () => {
         setIsCreatingNew(true)
@@ -203,17 +203,45 @@ ${resumeDoc?.parsed_text || '이력서 없음'}
 [자기소개서 텍스트]
 ${coverLetterDoc?.parsed_text || '자기소개서 없음'}`
 
+        setIsLoading(true)
+        setAiError(null)
+        setCompletion('')
+
         try {
-            await complete('generate_report', {
-                body: {
+            const res = await fetch('/api/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
                     system_prompt: SYSTEM_PROMPT,
                     student_data,
                     model_provider: selectedModel,
-                },
+                }),
             })
+
+            if (!res.ok) {
+                const errText = await res.text()
+                throw new Error(errText || `서버 오류 (${res.status})`)
+            }
+
+            if (!res.body) {
+                throw new Error('스트림 응답이 없습니다.')
+            }
+
+            const reader = res.body.getReader()
+            const decoder = new TextDecoder()
+
+            while (true) {
+                const { done, value } = await reader.read()
+                if (done) break
+                const chunk = decoder.decode(value, { stream: true })
+                setCompletion(prev => prev + chunk)
+            }
         } catch (err: any) {
             console.error('Generate error:', err)
+            setAiError(err instanceof Error ? err : new Error(err.message || '서버 오류'))
             alert(`생성 실패: ${err.message || '서버 오류가 발생했습니다.'}`)
+        } finally {
+            setIsLoading(false)
         }
     }
 
