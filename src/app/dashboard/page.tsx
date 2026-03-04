@@ -11,18 +11,8 @@ export default async function DashboardPage() {
         redirect('/login')
     }
 
-    // 2. Get role from user metadata (set during signup)
-    //    Fallback to public.users if metadata role is missing
-    let role = user.user_metadata?.role as string | undefined
-
-    if (!role) {
-        const { data: profile } = await supabase
-            .from('users')
-            .select('role')
-            .eq('id', user.id)
-            .single()
-        role = profile?.role
-    }
+    // 2. Get role via RPC (통일된 방식)
+    const { data: role } = await supabase.rpc('get_my_role')
 
     // 3. Redirect based on Role
     if (role === 'consultant') {

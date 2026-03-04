@@ -41,8 +41,8 @@ Please generate the response according to the system prompt instructions based o
         } else if (model_provider === 'claude-haiku') {
             selectedModel = anthropic('claude-3-5-haiku-latest')
         } else {
-            // Default: Gemini
-            selectedModel = google('gemini-1.5-pro-latest')
+            // Default: Gemini 2.0 Flash (빠른 응답, Vercel Hobby 호환)
+            selectedModel = google('gemini-2.0-flash')
         }
 
         const result = streamText({

@@ -21,7 +21,7 @@ export async function login(formData: FormData) {
     redirect(`/login?error=${encodeURIComponent(error.message)}`)
   }
 
-  // 로그인 성공 시 워크스페이스로 이동
+  // 로그인 성공 시 역할 기반 라우팅 (dashboard에서 역할 판단)
   revalidatePath('/', 'layout')
-  redirect('/consultant/workspace')
+  redirect('/dashboard')
 }

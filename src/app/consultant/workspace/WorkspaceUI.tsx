@@ -187,6 +187,12 @@ export default function WorkspaceUI({
         const resumeDoc = docs[0]
         const coverLetterDoc = docs[1]
 
+        // 문서가 없으면 경고
+        if (!resumeDoc?.parsed_text) {
+            alert('이력서 문서가 없습니다. 문서를 먼저 업로드해주세요.')
+            return
+        }
+
         const student_data = `고객명: ${selectedSession.client_name || '미입력'}
 지원 회사: ${selectedSession.target_company || '미입력'}
 지원 직무: ${selectedSession.job_description_url_or_text || '미입력'}
@@ -197,13 +203,18 @@ ${resumeDoc?.parsed_text || '이력서 없음'}
 [자기소개서 텍스트]
 ${coverLetterDoc?.parsed_text || '자기소개서 없음'}`
 
-        await complete('generate_report', {
-            body: {
-                system_prompt: SYSTEM_PROMPT,
-                student_data,
-                model_provider: selectedModel,
-            },
-        })
+        try {
+            await complete('generate_report', {
+                body: {
+                    system_prompt: SYSTEM_PROMPT,
+                    student_data,
+                    model_provider: selectedModel,
+                },
+            })
+        } catch (err: any) {
+            console.error('Generate error:', err)
+            alert(`생성 실패: ${err.message || '서버 오류가 발생했습니다.'}`)
+        }
     }
 
     const handleSave = async () => {
@@ -517,7 +528,7 @@ ${coverLetterDoc?.parsed_text || '자기소개서 없음'}`
                             <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-2">AI 모델 선택</label>
                             <div className="flex gap-1.5">
                                 {[
-                                    { id: 'gemini', label: 'Gemini 1.5 Pro', badge: '~₩16/건' },
+                                    { id: 'gemini', label: 'Gemini 2.0 Flash', badge: '빠름 ⚡' },
                                     { id: 'claude-haiku', label: 'Claude Haiku', badge: '~₩12/건' },
                                     { id: 'claude-sonnet', label: 'Claude Sonnet', badge: '~₩47/건' },
                                 ].map((m) => (
@@ -562,7 +573,8 @@ ${coverLetterDoc?.parsed_text || '자기소개서 없음'}`
 
                         {aiError && (
                             <div className="mb-3 p-3 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 text-sm rounded-lg border border-red-200 dark:border-red-800">
-                                오류: {aiError.message}
+                                <p className="font-bold mb-1">⚠️ 생성 오류</p>
+                                <p className="text-xs break-all">{aiError.message}</p>
                             </div>
                         )}
 
