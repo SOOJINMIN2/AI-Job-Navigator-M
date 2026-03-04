@@ -218,24 +218,17 @@ ${coverLetterDoc?.parsed_text || '자기소개서 없음'}`
                 }),
             })
 
+            const responseText = await res.text()
+
             if (!res.ok) {
-                const errText = await res.text()
-                throw new Error(errText || `서버 오류 (${res.status})`)
+                throw new Error(responseText || `서버 오류 (${res.status})`)
             }
 
-            if (!res.body) {
-                throw new Error('스트림 응답이 없습니다.')
+            if (!responseText) {
+                throw new Error('AI 응답이 비어있습니다. 잠시 후 다시 시도해주세요.')
             }
 
-            const reader = res.body.getReader()
-            const decoder = new TextDecoder()
-
-            while (true) {
-                const { done, value } = await reader.read()
-                if (done) break
-                const chunk = decoder.decode(value, { stream: true })
-                setCompletion(prev => prev + chunk)
-            }
+            setCompletion(responseText)
         } catch (err: any) {
             console.error('Generate error:', err)
             setAiError(err instanceof Error ? err : new Error(err.message || '서버 오류'))

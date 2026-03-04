@@ -1,4 +1,4 @@
-import { streamText } from 'ai'
+import { generateText } from 'ai'
 import { google } from '@ai-sdk/google'
 import { anthropic } from '@ai-sdk/anthropic'
 import { createClient } from '@/lib/supabase/server'
@@ -24,8 +24,7 @@ export async function POST(req: Request) {
             return new Response('Missing parameters', { status: 400 })
         }
 
-        const promptContent = `
-SYSTEM PROMPT:
+        const promptContent = `SYSTEM PROMPT:
 ${system_prompt}
 
 ---
@@ -37,22 +36,24 @@ Please generate the response according to the system prompt instructions based o
 
         let selectedModel
         if (model_provider === 'claude-sonnet') {
-            selectedModel = anthropic('claude-3-5-sonnet-latest')
+            selectedModel = anthropic('claude-sonnet-4-5')
         } else if (model_provider === 'claude-haiku') {
-            selectedModel = anthropic('claude-3-5-haiku-latest')
+            selectedModel = anthropic('claude-haiku-4-5')
         } else {
-            // Default: Gemini 2.0 Flash (빠른 응답, Vercel Hobby 호환)
+            // Default: Gemini 2.0 Flash
             selectedModel = google('gemini-2.0-flash')
         }
 
-        const result = streamText({
+        const { text } = await generateText({
             model: selectedModel,
             prompt: promptContent,
         })
 
-        return result.toTextStreamResponse()
+        return new Response(text, {
+            headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+        })
     } catch (e: any) {
         console.error("Generate API Error:", e)
-        return new Response(`Server Generation Error: ${e.message}`, { status: 500 })
+        return new Response(`생성 오류: ${e.message}`, { status: 500 })
     }
 }
