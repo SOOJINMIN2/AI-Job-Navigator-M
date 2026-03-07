@@ -36,17 +36,20 @@ Please generate the response according to the system prompt instructions based o
 
         let selectedModel
 
-        // Use custom provider if api_key is provided
-        const customGoogle = api_key ? createGoogleGenerativeAI({ apiKey: api_key }) : google;
-        const customAnthropic = api_key ? createAnthropic({ apiKey: api_key }) : anthropic;
+        // Identify the API key type
+        const isGoogleKey = api_key?.startsWith('AIza');
+        const isAnthropicKey = api_key?.startsWith('sk-ant-');
 
         if (model_provider === 'claude-sonnet') {
-            selectedModel = customAnthropic('claude-sonnet-4-5')
+            const provider = isAnthropicKey ? createAnthropic({ apiKey: api_key }) : anthropic;
+            selectedModel = provider('claude-sonnet-4-5')
         } else if (model_provider === 'claude-haiku') {
-            selectedModel = customAnthropic('claude-haiku-4-5')
+            const provider = isAnthropicKey ? createAnthropic({ apiKey: api_key }) : anthropic;
+            selectedModel = provider('claude-haiku-4-5')
         } else {
             // Default: Gemini 2.0 Flash
-            selectedModel = customGoogle('gemini-2.0-flash')
+            const provider = isGoogleKey ? createGoogleGenerativeAI({ apiKey: api_key }) : google;
+            selectedModel = provider('gemini-2.0-flash')
         }
 
         const { text } = await generateText({

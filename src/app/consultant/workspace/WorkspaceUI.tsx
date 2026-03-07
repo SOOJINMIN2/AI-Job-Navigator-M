@@ -612,7 +612,7 @@ ${coverLetterDoc?.parsed_text || '자기소개서 없음'}`
                                         type="password"
                                         value={apiKey}
                                         onChange={(e) => setApiKey(e.target.value)}
-                                        placeholder="선택한 AI 모델의 API 키를 입력하세요 (예: AIzaSy...)"
+                                        placeholder="선택한 AI 모델의 API 키를 입력하세요 (Gemini: AIza..., Claude: sk-ant...)"
                                         className="w-full text-xs px-2.5 py-2 border border-gray-300 dark:border-zinc-600 rounded bg-gray-50 dark:bg-zinc-900 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
                                     />
                                     <div className="flex justify-between items-center">
