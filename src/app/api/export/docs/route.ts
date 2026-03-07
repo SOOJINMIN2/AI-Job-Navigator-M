@@ -26,10 +26,14 @@ export async function POST(req: Request) {
                 client_email: process.env.GOOGLE_CLIENT_EMAIL,
                 private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
             },
-            scopes: ['https://www.googleapis.com/auth/documents'],
+            scopes: [
+                'https://www.googleapis.com/auth/documents',
+                'https://www.googleapis.com/auth/drive'
+            ],
         })
 
         const docs = google.docs({ version: 'v1', auth })
+        const drive = google.drive({ version: 'v3', auth })
 
         // 4. Create a new Google Document
         const createResponse = await docs.documents.create({
@@ -58,6 +62,15 @@ export async function POST(req: Request) {
                         },
                     },
                 ],
+            },
+        })
+
+        // 6. Share the document so the user can access it
+        await drive.permissions.create({
+            fileId: documentId,
+            requestBody: {
+                role: 'writer',
+                type: 'anyone',
             },
         })
 
