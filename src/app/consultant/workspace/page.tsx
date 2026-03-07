@@ -23,7 +23,8 @@ export default async function ConsultantWorkspacePage() {
             cover_letter_text,
             status,
             created_at,
-            documents ( file_url, parsed_text )
+            documents ( file_url, parsed_text ),
+            results ( final_content )
         `)
         .order('created_at', { ascending: false })
 

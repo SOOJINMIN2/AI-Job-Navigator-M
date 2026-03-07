@@ -13,6 +13,7 @@ type SessionType = {
     status: string
     created_at: string
     documents: { file_url: string; parsed_text: string }[]
+    results?: { final_content: string }[]
 }
 
 // 내부 고정 프롬프트 (사용자에게 노출하지 않음)
@@ -105,7 +106,13 @@ export default function WorkspaceUI({
     const handleSelectSession = (s: SessionType) => {
         setSelectedSession(s)
         setIsCreatingNew(false)
-        setCompletion('')
+
+        // 이미 저장된 결과가 있다면 불러오기
+        if (s.results && s.results.length > 0) {
+            setCompletion(s.results[0].final_content || '')
+        } else {
+            setCompletion('')
+        }
     }
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -274,10 +281,11 @@ ${coverLetterDoc?.parsed_text || '자기소개서 없음'}`
         setIsSaving(true)
         try {
             await saveFinalResult(selectedSession.id, completion)
-            alert('결과가 저장되었습니다. 케이스가 완료 처리되었습니다.')
+            alert('결과가 성공적으로 저장되었습니다. 이제 학생이 결과를 확인할 수 있습니다.')
             router.refresh()
-        } catch {
-            alert('저장에 실패했습니다.')
+        } catch (err: any) {
+            console.error('Save error:', err)
+            alert(`저장에 실패했습니다: ${err.message || '알 수 없는 오류'}`)
         } finally {
             setIsSaving(false)
         }

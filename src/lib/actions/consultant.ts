@@ -74,34 +74,64 @@ export async function deleteSession(requestId: string) {
 }
 
 export async function saveFinalResult(requestId: string, finalContent: string) {
-    const supabase = await createClient()
+    try {
+        const supabase = await createClient()
 
-    // 1. 컨설턴트 세션 확인
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) throw new Error('Unauthorized')
+        // 1. 인증 확인
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        if (authError || !user) throw new Error('로그인이 필요합니다.')
 
-    const { data: role } = await supabase.rpc('get_my_role')
-    if (role !== 'consultant') throw new Error('Forbidden')
+        const { data: role } = await supabase.rpc('get_my_role')
+        if (role !== 'consultant') throw new Error('컨설턴트 권한이 필요합니다.')
 
-    // 2. results 테이블에 upsert
-    const { data: existingResult } = await supabase
-        .from('results')
-        .select('id')
-        .eq('request_id', requestId)
-        .single()
+        // 2. results 테이블에 upsert
+        // 기존에 결과가 있는지 확인
+        const { data: existingResult, error: selectError } = await supabase
+            .from('results')
+            .select('id')
+            .eq('request_id', requestId)
+            .maybeSingle()
 
-    if (existingResult) {
-        await supabase.from('results').update({ final_content: finalContent }).eq('id', existingResult.id)
-    } else {
-        await supabase.from('results').insert({ request_id: requestId, final_content: finalContent })
+        if (selectError) {
+            throw new Error(`결과 조회 중 오류: ${selectError.message}`)
+        }
+
+        if (existingResult) {
+            const { error: updateError } = await supabase
+                .from('results')
+                .update({
+                    final_content: finalContent,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', existingResult.id)
+
+            if (updateError) throw new Error(`결과 업데이트 실패: ${updateError.message}`)
+        } else {
+            const { error: insertError } = await supabase
+                .from('results')
+                .insert({
+                    request_id: requestId,
+                    final_content: finalContent
+                })
+
+            if (insertError) throw new Error(`결과 저장 실패: ${insertError.message}`)
+        }
+
+        // 3. 요청 상태를 'completed'로 업데이트
+        const { error: statusError } = await supabase
+            .from('consulting_requests')
+            .update({ status: 'completed' })
+            .eq('id', requestId)
+
+        if (statusError) {
+            throw new Error(`상태 업데이트 실패: ${statusError.message}`)
+        }
+
+        revalidatePath('/consultant/workspace')
+        revalidatePath(`/student/result/${requestId}`)
+        return { success: true }
+    } catch (err: any) {
+        console.error('saveFinalResult error:', err)
+        throw err
     }
-
-    // 3. 요청 상태를 'completed'로 업데이트
-    await supabase
-        .from('consulting_requests')
-        .update({ status: 'completed' })
-        .eq('id', requestId)
-
-    revalidatePath('/consultant/workspace')
-    return { success: true }
 }
