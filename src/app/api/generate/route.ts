@@ -47,9 +47,9 @@ Please generate the response according to the system prompt instructions based o
             const provider = isAnthropicKey ? createAnthropic({ apiKey: api_key }) : anthropic;
             selectedModel = provider('claude-haiku-4-5')
         } else {
-            // Default: Gemini 1.5 Flash
+            // Default: Gemini 1.5 Pro
             const provider = isGoogleKey ? createGoogleGenerativeAI({ apiKey: api_key }) : google;
-            selectedModel = provider('gemini-1.5-flash-latest')
+            selectedModel = provider('gemini-1.5-pro')
         }
 
         const { text } = await generateText({
