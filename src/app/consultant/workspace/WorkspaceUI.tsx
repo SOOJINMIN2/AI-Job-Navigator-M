@@ -570,7 +570,7 @@ ${coverLetterDoc?.parsed_text || '자기소개서 없음'}`
                             <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-2">AI 모델 선택</label>
                             <div className="flex gap-1.5">
                                 {[
-                                    { id: 'gemini', label: 'Gemini 2.0 Flash', badge: '빠름 ⚡' },
+                                    { id: 'gemini', label: 'Gemini 1.5 Flash', badge: '빠름 ⚡' },
                                     { id: 'claude-haiku', label: 'Claude Haiku', badge: '~₩12/건' },
                                     { id: 'claude-sonnet', label: 'Claude Sonnet', badge: '~₩47/건' },
                                 ].map((m) => (
