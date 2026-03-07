@@ -273,27 +273,57 @@ ${coverLetterDoc?.parsed_text || '자기소개서 없음'}`
         }
     }
 
-    const handleExportDocs = async () => {
+    const handlePrint = () => {
         if (!selectedSession || !completion) return
-        setIsExportingDocs(true)
-        try {
-            const res = await fetch('/api/export/docs', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    final_content: completion,
-                    student_name: selectedSession.client_name || '고객',
-                }),
-            })
-            const data = await res.json()
-            if (!res.ok) throw new Error(data.error || 'Export 실패')
-            alert('Google Docs로 내보내기 성공!')
-            window.open(data.url, '_blank')
-        } catch (err: any) {
-            alert(`Export 실패: ${err.message}`)
-        } finally {
-            setIsExportingDocs(false)
+
+        const printWindow = window.open('', '_blank', 'width=800,height=600');
+        if (!printWindow) {
+            alert('브라우저의 팝업 차단을 해제해주세요.');
+            return;
         }
+
+        const formattedContent = completion
+            .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") // basic sanitize
+            .replace(/\n      /g, '<br/>')
+            .replace(/\n    /g, '<br/>')
+            .replace(/\n  /g, '<br/>')
+            .replace(/\n\n/g, '<br/><br/>')
+            .replace(/\n/g, '<br/>');
+
+        const studentName = selectedSession.client_name || '고객';
+        const targetCompany = selectedSession.target_company || '지원회사';
+        const date = new Date().toLocaleDateString();
+
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+                <head>
+                    <title>Consulting Report - ${studentName}</title>
+                    <style>
+                        body { font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; line-height: 1.6; color: #111; padding: 40px; max-width: 800px; margin: 0 auto;word-break: keep-all; }
+                        h1 { color: #1a56db; border-bottom: 2px solid #1a56db; padding-bottom: 15px; margin-bottom: 20px;}
+                        .meta { color: #555; margin-bottom: 30px; font-size: 0.95em; line-height: 1.8; background: #f8fafc; padding: 15px; border-radius: 8px;}
+                        .content { white-space: pre-wrap; font-size: 1em; }
+                        .print-btn { display: block; width: 100%; padding: 15px; background: #1a56db; color: white; text-align: center; border: none; font-size: 16px; cursor: pointer; border-radius: 8px; margin-bottom: 30px; font-weight: bold;}
+                        @media print {
+                            body { padding: 0; }
+                            .print-btn { display: none; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <button class="print-btn" onclick="window.print()">🖨️ 인쇄하기 (또는 PDF로 빈틈없이 저장)</button>
+                    <h1>AI Job Navigator<br>📝 개별 컨설팅 보고서</h1>
+                    <div class="meta">
+                        <strong>대상자:</strong> ${studentName}<br>
+                        <strong>지원 회사:</strong> ${targetCompany}<br>
+                        <strong>작성 일자:</strong> ${date}
+                    </div>
+                    <div class="content">${formattedContent}</div>
+                </body>
+            </html>
+        `);
+        printWindow.document.close();
     }
 
     return (
@@ -689,11 +719,12 @@ ${coverLetterDoc?.parsed_text || '자기소개서 없음'}`
                                 {isSaving ? '저장 중...' : '✓ 결과 저장 (케이스 완료)'}
                             </button>
                             <button
-                                onClick={handleExportDocs}
-                                disabled={isExportingDocs || !completion}
-                                className="w-full bg-white dark:bg-zinc-800 text-blue-700 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-zinc-700 border border-blue-200 dark:border-blue-800 py-2.5 rounded-lg text-sm font-bold disabled:opacity-50 transition-colors"
+                                onClick={handlePrint}
+                                disabled={!completion}
+                                className="w-full bg-white dark:bg-zinc-800 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-zinc-700 border border-indigo-200 dark:border-indigo-800 py-2.5 rounded-lg text-sm font-bold disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
                             >
-                                {isExportingDocs ? '내보내는 중...' : 'Google Docs로 내보내기'}
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
+                                리포트 인쇄 / PDF 다운로드
                             </button>
                         </div>
                     </div>
