@@ -49,7 +49,7 @@ Please generate the response according to the system prompt instructions based o
         } else {
             // Default: Gemini 1.5 Flash
             const provider = isGoogleKey ? createGoogleGenerativeAI({ apiKey: api_key }) : google;
-            selectedModel = provider('gemini-1.5-flash')
+            selectedModel = provider('gemini-1.5-flash-latest')
         }
 
         const { text } = await generateText({
