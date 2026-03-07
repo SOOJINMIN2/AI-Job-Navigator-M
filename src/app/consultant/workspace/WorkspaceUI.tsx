@@ -55,7 +55,23 @@ export default function WorkspaceUI({
 
     // AI 상태
     const [selectedModel, setSelectedModel] = useState<string>('gemini')
+    const [apiKey, setApiKey] = useState<string>('')
+    const [showApiKeyInput, setShowApiKeyInput] = useState<boolean>(true)
     const [isSaving, setIsSaving] = useState(false)
+
+    useEffect(() => {
+        const savedKey = localStorage.getItem('ai_consultant_api_key')
+        if (savedKey) {
+            setApiKey(savedKey)
+            setShowApiKeyInput(false)
+        }
+    }, [])
+
+    const handleSaveApiKey = () => {
+        localStorage.setItem('ai_consultant_api_key', apiKey.trim())
+        setShowApiKeyInput(false)
+        alert('API 키가 브라우저에 저장되었습니다. 이제 보고서를 생성할 수 있습니다.')
+    }
     const [isExportingDocs, setIsExportingDocs] = useState(false)
     const [isDeletingId, setIsDeletingId] = useState<string | null>(null)
 
@@ -131,6 +147,10 @@ export default function WorkspaceUI({
                 if (!uploadRes.ok) {
                     throw new Error(responseData.error || `PDF 업로드 실패 (${docTypes[i]})`)
                 }
+
+                if (responseData.document) {
+                    uploadedDocs.push(responseData.document)
+                }
                 console.log(`Upload ${i + 1} successful`);
             }
 
@@ -138,7 +158,7 @@ export default function WorkspaceUI({
             // 서버 갱신 전 로컬 상태에 먼저 새 케이스를 띄워 체감 속도와 반영을 확실히 합니다.
             const createdSession = {
                 ...newSession,
-                documents: [] // 업로드된 문서는 나중에 새로고침 시 불러옴
+                documents: uploadedDocs
             }
             setSessions(prev => [createdSession, ...prev])
 
@@ -215,6 +235,7 @@ ${coverLetterDoc?.parsed_text || '자기소개서 없음'}`
                     system_prompt: SYSTEM_PROMPT,
                     student_data,
                     model_provider: selectedModel,
+                    api_key: apiKey.trim(),
                 }),
             })
 
@@ -566,6 +587,55 @@ ${coverLetterDoc?.parsed_text || '자기소개서 없음'}`
                                     </button>
                                 ))}
                             </div>
+                        </div>
+
+                        {/* API 키 입력 (개별 컨설턴트 용) */}
+                        <div className="mb-5 bg-white dark:bg-zinc-800 rounded-lg border border-gray-200 dark:border-zinc-700 p-3 shadow-sm">
+                            <div className="flex justify-between items-center mb-2">
+                                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
+                                    개별 API 키 설정
+                                </label>
+                                {apiKey && !showApiKeyInput && (
+                                    <button
+                                        onClick={() => setShowApiKeyInput(true)}
+                                        className="text-[10px] text-blue-600 dark:text-blue-400 hover:underline font-semibold"
+                                    >
+                                        변경하기
+                                    </button>
+                                )}
+                            </div>
+
+                            {showApiKeyInput ? (
+                                <div className="space-y-2">
+                                    <input
+                                        type="password"
+                                        value={apiKey}
+                                        onChange={(e) => setApiKey(e.target.value)}
+                                        placeholder="선택한 AI 모델의 API 키를 입력하세요 (예: AIzaSy...)"
+                                        className="w-full text-xs px-2.5 py-2 border border-gray-300 dark:border-zinc-600 rounded bg-gray-50 dark:bg-zinc-900 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                    />
+                                    <div className="flex justify-between items-center">
+                                        <p className="text-[10px] text-gray-500 dark:text-gray-400 max-w-[75%] leading-tight">
+                                            제공된 할당량(Quota) 초과 시 본인의 API 키를 직접 입력하세요.<br />키는 브라우저에만 유지됩니다.
+                                        </p>
+                                        <button
+                                            onClick={handleSaveApiKey}
+                                            disabled={!apiKey.trim()}
+                                            className="px-3 py-1.5 bg-gray-800 dark:bg-gray-100 text-white dark:text-gray-900 text-xs font-semibold rounded hover:bg-gray-700 dark:hover:bg-white transition-colors disabled:opacity-50"
+                                        >
+                                            저장
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="flex items-center text-xs text-emerald-600 dark:text-emerald-400 font-semibold bg-emerald-50 dark:bg-emerald-900/10 px-2.5 py-1.5 rounded border border-emerald-100 dark:border-emerald-900/30">
+                                    <svg className="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                    API 키 적용 완료
+                                </div>
+                            )}
                         </div>
 
                         {/* 생성 버튼 */}

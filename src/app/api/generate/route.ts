@@ -1,6 +1,6 @@
 import { generateText } from 'ai'
-import { google } from '@ai-sdk/google'
-import { anthropic } from '@ai-sdk/anthropic'
+import { createGoogleGenerativeAI, google } from '@ai-sdk/google'
+import { createAnthropic, anthropic } from '@ai-sdk/anthropic'
 import { createClient } from '@/lib/supabase/server'
 
 export const maxDuration = 60
@@ -18,7 +18,7 @@ export async function POST(req: Request) {
         if (rpcError) return new Response(`Role Verification Error: ${rpcError.message}`, { status: 500 })
         if (role !== 'consultant') return new Response(`Forbidden: User is not a consultant (role: ${role})`, { status: 403 })
 
-        const { system_prompt, student_data, model_provider } = await req.json()
+        const { system_prompt, student_data, model_provider, api_key } = await req.json()
 
         if (!system_prompt || !student_data) {
             return new Response('Missing parameters', { status: 400 })
@@ -35,13 +35,18 @@ Please generate the response according to the system prompt instructions based o
 `
 
         let selectedModel
+
+        // Use custom provider if api_key is provided
+        const customGoogle = api_key ? createGoogleGenerativeAI({ apiKey: api_key }) : google;
+        const customAnthropic = api_key ? createAnthropic({ apiKey: api_key }) : anthropic;
+
         if (model_provider === 'claude-sonnet') {
-            selectedModel = anthropic('claude-sonnet-4-5')
+            selectedModel = customAnthropic('claude-sonnet-4-5')
         } else if (model_provider === 'claude-haiku') {
-            selectedModel = anthropic('claude-haiku-4-5')
+            selectedModel = customAnthropic('claude-haiku-4-5')
         } else {
             // Default: Gemini 2.0 Flash
-            selectedModel = google('gemini-2.0-flash')
+            selectedModel = customGoogle('gemini-2.0-flash')
         }
 
         const { text } = await generateText({

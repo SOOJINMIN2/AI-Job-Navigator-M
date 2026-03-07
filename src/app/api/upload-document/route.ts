@@ -79,7 +79,15 @@ export async function POST(req: Request) {
         }
 
         // Success
-        return NextResponse.json({ success: true, message: 'Document successfully parsed and stored.' })
+        return NextResponse.json({
+            success: true,
+            message: 'Document successfully parsed and stored.',
+            document: {
+                file_url: publicUrl,
+                parsed_text: parsedText,
+                document_type: documentType
+            }
+        })
 
     } catch (err: any) {
         console.error('Upload Endpoint Error:', err)
