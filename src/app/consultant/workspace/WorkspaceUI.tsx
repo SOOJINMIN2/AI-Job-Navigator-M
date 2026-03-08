@@ -37,8 +37,10 @@ const SYSTEM_PROMPT = `당신은 최상위 전문 취업 컨설턴트입니다. 
 
 export default function WorkspaceUI({
     initialSessions,
+    userId,
 }: {
     initialSessions: SessionType[]
+    userId: string
 }) {
     const [sessions, setSessions] = useState<SessionType[]>(initialSessions)
     const [selectedSession, setSelectedSession] = useState<SessionType | null>(null)
@@ -71,17 +73,30 @@ export default function WorkspaceUI({
     const [isSaving, setIsSaving] = useState(false)
 
     useEffect(() => {
-        const savedKey = localStorage.getItem('ai_consultant_api_key')
+        if (!userId) return
+        const savedKey = localStorage.getItem(`ai_key_${userId}`)
         if (savedKey) {
             setApiKey(savedKey)
             setShowApiKeyInput(false)
+        } else {
+            setApiKey('')
+            setShowApiKeyInput(true)
         }
-    }, [])
+    }, [userId])
 
     const handleSaveApiKey = () => {
-        localStorage.setItem('ai_consultant_api_key', apiKey.trim())
+        if (!userId) return
+        localStorage.setItem(`ai_key_${userId}`, apiKey.trim())
         setShowApiKeyInput(false)
-        alert('API 키가 브라우저에 저장되었습니다. 이제 보고서를 생성할 수 있습니다.')
+        alert('API 키가 안전하게 저장되었습니다. (해당 계정 전용)')
+    }
+
+    const handleClearApiKey = () => {
+        if (!userId) return
+        localStorage.removeItem(`ai_key_${userId}`)
+        setApiKey('')
+        setShowApiKeyInput(true)
+        alert('저장된 API 키가 삭제되었습니다.')
     }
     const [isExportingDocs, setIsExportingDocs] = useState(false)
     const [isDeletingId, setIsDeletingId] = useState<string | null>(null)
@@ -106,10 +121,11 @@ export default function WorkspaceUI({
     const handleSelectSession = (s: SessionType) => {
         setSelectedSession(s)
         setIsCreatingNew(false)
+        setAiError(null)
 
-        // 이미 저장된 결과가 있다면 불러오기
-        if (s.results && s.results.length > 0) {
-            setCompletion(s.results[0].final_content || '')
+        // 이미 저장된 결과가 있다면 불러오기 (results 배열의 첫 번째 항목)
+        if (s.results && s.results.length > 0 && s.results[0].final_content) {
+            setCompletion(s.results[0].final_content)
         } else {
             setCompletion('')
         }
@@ -639,7 +655,7 @@ ${coverLetterDoc?.parsed_text || '자기소개서 없음'}`
                             <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-2">AI 모델 선택</label>
                             <div className="flex gap-1.5">
                                 {[
-                                    { id: 'gemini', label: 'Gemini 2.5 Flash', badge: '최신 🚀' },
+                                    { id: 'gemini', label: 'Gemini 2.0 Flash', badge: '무료/최신 🚀' },
                                     { id: 'claude-haiku', label: 'Claude Haiku', badge: '~₩12/건' },
                                     { id: 'claude-sonnet', label: 'Claude Sonnet', badge: '~₩47/건' },
                                 ].map((m) => (
@@ -658,53 +674,49 @@ ${coverLetterDoc?.parsed_text || '자기소개서 없음'}`
                             </div>
                         </div>
 
-                        {/* API 키 입력 (개별 컨설턴트 용) */}
-                        <div className="mb-5 bg-white dark:bg-zinc-800 rounded-lg border border-gray-200 dark:border-zinc-700 p-3 shadow-sm">
-                            <div className="flex justify-between items-center mb-2">
-                                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
-                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
-                                    개별 API 키 설정
-                                </label>
-                                {apiKey && !showApiKeyInput && (
-                                    <button
-                                        onClick={() => setShowApiKeyInput(true)}
-                                        className="text-[10px] text-blue-600 dark:text-blue-400 hover:underline font-semibold"
-                                    >
-                                        변경하기
-                                    </button>
+                        {/* 개별 API 키 설정 (가시성 고정) */}
+                        <div className="mb-5 bg-white dark:bg-zinc-800 rounded-lg border-2 border-blue-100 dark:border-blue-900/30 p-4 shadow-sm">
+                            <div className="flex justify-between items-center mb-3">
+                                <h4 className="flex items-center gap-2 text-sm font-bold text-gray-800 dark:text-gray-200">
+                                    <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
+                                    개별 API 키 입력
+                                </h4>
+                                {apiKey && (
+                                    <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold">저장됨</span>
                                 )}
                             </div>
 
-                            {showApiKeyInput ? (
-                                <div className="space-y-2">
-                                    <input
-                                        type="password"
-                                        value={apiKey}
-                                        onChange={(e) => setApiKey(e.target.value)}
-                                        placeholder="선택한 AI 모델의 API 키를 입력하세요 (Gemini: AIza..., Claude: sk-ant...)"
-                                        className="w-full text-xs px-2.5 py-2 border border-gray-300 dark:border-zinc-600 rounded bg-gray-50 dark:bg-zinc-900 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                    />
-                                    <div className="flex justify-between items-center">
-                                        <p className="text-[10px] text-gray-500 dark:text-gray-400 max-w-[75%] leading-tight">
-                                            제공된 할당량(Quota) 초과 시 본인의 API 키를 직접 입력하세요.<br />키는 브라우저에만 유지됩니다.
-                                        </p>
-                                        <button
-                                            onClick={handleSaveApiKey}
-                                            disabled={!apiKey.trim()}
-                                            className="px-3 py-1.5 bg-gray-800 dark:bg-gray-100 text-white dark:text-gray-900 text-xs font-semibold rounded hover:bg-gray-700 dark:hover:bg-white transition-colors disabled:opacity-50"
-                                        >
-                                            저장
-                                        </button>
-                                    </div>
+                            <div className="space-y-3">
+                                <input
+                                    type="password"
+                                    value={apiKey}
+                                    onChange={(e) => {
+                                        setApiKey(e.target.value)
+                                        setShowApiKeyInput(true) // 입력 시작하면 버튼들 노출
+                                    }}
+                                    placeholder="Gemini 키 (AIza...) 또는 Claude 키 (sk-ant...)"
+                                    className="w-full text-sm px-3 py-2 border border-blue-100 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-900 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-mono"
+                                />
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={handleSaveApiKey}
+                                        disabled={!apiKey.trim()}
+                                        className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-md text-xs font-bold transition-all disabled:opacity-50 shadow-sm"
+                                    >
+                                        키 저장 (현재 계정)
+                                    </button>
+                                    <button
+                                        onClick={handleClearApiKey}
+                                        className="px-3 bg-gray-50 hover:bg-red-50 text-gray-500 hover:text-red-500 border border-gray-200 py-2 rounded-md text-xs font-bold transition-all"
+                                    >
+                                        삭제
+                                    </button>
                                 </div>
-                            ) : (
-                                <div className="flex items-center text-xs text-emerald-600 dark:text-emerald-400 font-semibold bg-emerald-50 dark:bg-emerald-900/10 px-2.5 py-1.5 rounded border border-emerald-100 dark:border-emerald-900/30">
-                                    <svg className="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                                    </svg>
-                                    API 키 적용 완료
-                                </div>
-                            )}
+                                <p className="text-[10px] text-gray-500 leading-normal bg-gray-50 dark:bg-zinc-900/50 p-2 rounded border border-gray-100 dark:border-zinc-800">
+                                    💡 <strong>공용 할당량 초과</strong> 시 본인의 API 키를 입력하세요. <br/>
+                                    키는 웹브라우저에 <strong>계정 ID별</strong>로 안전하게 분리 저장됩니다.
+                                </p>
+                            </div>
                         </div>
 
                         {/* 생성 버튼 */}
