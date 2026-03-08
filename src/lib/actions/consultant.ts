@@ -54,21 +54,22 @@ export async function deleteSession(requestId: string) {
         const { data: role } = await supabase.rpc('get_my_role')
         if (role !== 'consultant') return { success: false, error: '컨설턴트 권한이 필요합니다.' }
 
-        const res1 = await supabase.from('results').delete().eq('request_id', requestId)
-        if (res1.error) return { success: false, error: res1.error.message }
-
-        const res2 = await supabase.from('documents').delete().eq('request_id', requestId)
-        if (res2.error) return { success: false, error: res2.error.message }
-
+        // Note: DB is configured with ON DELETE CASCADE for 'documents' and 'results' tables.
+        // Deleting from 'consulting_requests' will automatically remove related entries.
         const { error } = await supabase
             .from('consulting_requests')
             .delete()
             .eq('id', requestId)
 
-        if (error) return { success: false, error: error.message }
+        if (error) {
+            console.error('Delete error:', error)
+            return { success: false, error: `삭제 실패: ${error.message}` }
+        }
 
+        revalidatePath('/consultant/workspace')
         return { success: true }
     } catch (err: any) {
+        console.error('Delete session exception:', err)
         return { success: false, error: err.message }
     }
 }

@@ -209,25 +209,31 @@ export default function WorkspaceUI({
     }
 
     const handleDeleteSession = async (id: string, e: React.MouseEvent) => {
+        e.preventDefault()
         e.stopPropagation()
         if (!confirm('이 케이스를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) return
         setIsDeletingId(id)
         try {
             const res = await deleteSession(id)
-            if (res && typeof res === 'object' && 'error' in res && res.error) {
-                alert(`삭제 실패: ${res.error}`)
+            if (res && !res.success) {
+                alert(res.error || '삭제 중 오류가 발생했습니다.')
                 setIsDeletingId(null)
                 return
             }
-            // Proceed with UI update on success (or if void return was historically a success)
+            
+            // UI를 즉시 업데이트
             setSessions(prev => prev.filter(s => s.id !== id))
             if (selectedSession?.id === id) {
                 setSelectedSession(null)
                 setCompletion('')
             }
+            
+            // 서버 캐시 갱신 (server action 내의 revalidatePath가 처리하지만 클라이언트에서도 명시적으로 리프레시)
             router.refresh()
+            console.log("Session deleted successfully:", id);
         } catch (err: any) {
-            alert(`삭제 실패: ${err.message}`)
+            console.error("Delete task failed:", err);
+            alert(`삭제 실패: ${err.message || '알 수 없는 오류'}`)
         } finally {
             setIsDeletingId(null)
         }
