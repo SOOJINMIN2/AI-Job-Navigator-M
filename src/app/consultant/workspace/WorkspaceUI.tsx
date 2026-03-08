@@ -256,21 +256,42 @@ ${coverLetterDoc?.parsed_text || '자기소개서 없음'}`
                 }),
             })
 
-            const responseText = await res.text()
-
             if (!res.ok) {
-                throw new Error(responseText || `서버 오류 (${res.status})`)
+                const responseText = await res.text()
+                console.error("Server Response Error:", responseText);
+                throw new Error(`서버 오류 (${res.status}): ${responseText || '상세 정보 없음'}`)
             }
 
-            if (!responseText) {
-                throw new Error('AI 응답이 비어있습니다. 잠시 후 다시 시도해주세요.')
+            const reader = res.body?.getReader()
+            const decoder = new TextDecoder()
+            if (!reader) {
+                throw new Error("응답 본문을 읽을 수 없습니다.")
             }
 
-            setCompletion(responseText)
+            console.log("Stream reading started...");
+            let hasContent = false;
+            while (true) {
+                const { done, value } = await reader.read()
+                if (done) {
+                    console.log("Stream reading finished.");
+                    break
+                }
+                const chunk = decoder.decode(value, { stream: true })
+                if (chunk) {
+                    hasContent = true;
+                    setCompletion(prev => prev + chunk)
+                }
+            }
+
+            if (!hasContent) {
+                console.warn("Stream was empty!");
+                throw new Error("AI가 빈 응답을 보냈습니다. 프롬프트나 데이터가 너무 짧은지 확인해주세요.")
+            }
+
         } catch (err: any) {
-            console.error('Generate error:', err)
+            console.error('Detailed Generate error:', err)
             setAiError(err instanceof Error ? err : new Error(err.message || '서버 오류'))
-            alert(`생성 실패: ${err.message || '서버 오류가 발생했습니다.'}`)
+            alert(`생성 실패: ${err.message || '서버와의 연결 중 오류가 발생했습니다.'}`)
         } finally {
             setIsLoading(false)
         }

@@ -5,7 +5,17 @@ export default async function SignupPage({
 }: {
     searchParams: Promise<{ error?: string }>
 }) {
-    const { error } = await searchParams
+    const { error: rawError } = await searchParams
+
+    // 에러 메시지 한글화 맵핑
+    const errorMap: Record<string, string> = {
+        'User already registered': '이미 등록된 이메일입니다.',
+        'Invalid login credentials': '이메일 또는 비밀번호가 잘못되었습니다.',
+        'Signup not allowed for this email': '이 이메일로는 가입할 수 없습니다.',
+        'Password should be at least 6 characters': '비밀번호는 최소 6자 이상이어야 합니다.',
+    }
+
+    const displayError = rawError ? (errorMap[rawError] || rawError) : null
 
     return (
         <div className="flex min-h-screen items-center justify-center p-4 bg-gray-50 dark:bg-zinc-950">
@@ -19,9 +29,9 @@ export default async function SignupPage({
                     </p>
                 </div>
 
-                {error && (
+                {displayError && (
                     <div className="rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-3">
-                        <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+                        <p className="text-sm text-red-600 dark:text-red-400">{displayError}</p>
                     </div>
                 )}
 
