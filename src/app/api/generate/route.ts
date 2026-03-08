@@ -50,9 +50,9 @@ export async function POST(req: Request) {
             const provider = isAnthropicKey ? createAnthropic({ apiKey: api_key }) : anthropic;
             selectedModel = provider('claude-3-5-haiku-20241022')
         } else {
-            // Default: Gemini 2.0 Flash
+            // Default: Gemini 2.5 Flash
             const provider = isGoogleKey ? createGoogleGenerativeAI({ apiKey: api_key }) : google;
-            selectedModel = provider('gemini-2.0-flash')
+            selectedModel = provider('gemini-2.5-flash')
         }
 
         // 4. 스트리밍 방식으로 텍스트 생성 시작
